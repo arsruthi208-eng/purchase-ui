@@ -1,52 +1,77 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
-import { stageGrnApi, type StageGrn, type CreateStageGrnRequest } from '../api/stageGrn'
-import { unitDcApi, type UnitDc } from '../api/unitDc'
-import { stitchingDcApi, type StitchingDc } from '../api/stitchingDc'
+import {
+  stageGrnApi,
+  type StageGrn,
+  type CreateStageGrnRequest,
+  type DcSourceInfo,
+} from '../api/stageGrn'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, statusBadge, today } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
-// Extended item type that also carries styleName for display
 type Item = CreateStageGrnRequest['items'][0] & { styleName?: string }
-
-const SOURCE_LABELS: Record<string, string> = {
-  UNIT_DC: 'Unit DC',
-  KAJA_DC: 'KajaButton DC',
-}
 
 export default function StageGrnPage() {
   const navigate = useNavigate()
   const [records, setRecords] = useState<StageGrn[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [sourceFilter, setSourceFilter] = useState('')
+  const [search, setSearch] = useState('')
 
-  const { data: unitDcs }    = useApiList<UnitDc>(() => unitDcApi.list())
-  const { data: kajaDcs }    = useApiList<StitchingDc>(() => stitchingDcApi.list())
-
-  const confirmedUnitDcs = unitDcs.filter(u => u.status === 'CONFIRMED')
-  const confirmedKajaDcs = kajaDcs.filter(k => k.status === 'CONFIRMED')
+  const { data: sources } = useApiList<DcSourceInfo>(() => stageGrnApi.sources())
 
   const [showForm, setShowForm] = useState(false)
-  const [sourceType, setSourceType] = useState('UNIT_DC')
+  const [sourceType, setSourceType] = useState('')
   const [sourceId, setSourceId] = useState('')
   const [receivedDate, setReceivedDate] = useState(today())
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<Item[]>([])
+  const [loadingItems, setLoadingItems] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const { dialog, showError, showConfirm } = useAlertDialog()
 
   const load = () => {
     setLoading(true)
-    stageGrnApi.list().then(setRecords).finally(() => setLoading(false))
+    setLoadError('')
+    stageGrnApi.list()
+      .then(setRecords)
+      .catch((e: Error) => setLoadError(e.message))
+      .finally(() => setLoading(false))
   }
 
   useEffect(load, [])
 
+  const sourceTypeOptions = useMemo(() => {
+    const fromRecords = records.map(r => r.sourceLabel || r.sourceType)
+    const fromSources = sources.map(s => s.label)
+    return Array.from(new Set([...fromSources, ...fromRecords])).sort()
+  }, [records, sources])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return records.filter(r => {
+      if (statusFilter && r.status !== statusFilter) return false
+      const label = r.sourceLabel || r.sourceType
+      if (sourceFilter && label !== sourceFilter && r.sourceType !== sourceFilter) return false
+      if (!q) return true
+      return (
+        r.grnNumber.toLowerCase().includes(q) ||
+        (r.sourceDcNumber ?? '').toLowerCase().includes(q) ||
+        (r.schoolName ?? '').toLowerCase().includes(q) ||
+        label.toLowerCase().includes(q)
+      )
+    })
+  }, [records, statusFilter, sourceFilter, search])
+
   const openCreate = () => {
-    setSourceType('UNIT_DC')
+    const first = sources[0]
+    setSourceType(first?.sourceType ?? '')
     setSourceId('')
     setReceivedDate(today())
     setNotes('')
@@ -55,26 +80,33 @@ export default function StageGrnPage() {
     setShowForm(true)
   }
 
-  // When source DC selected, auto-fill items from it
-  const onSourceChange = (type: string, id: string) => {
+  const onSourceTypeChange = (type: string) => {
+    setSourceType(type)
+    setSourceId('')
+    setItems([])
+  }
+
+  const onSourceChange = async (type: string, id: string) => {
     setSourceType(type)
     setSourceId(id)
     if (!id) { setItems([]); return }
-
-    const dc = type === 'UNIT_DC'
-      ? confirmedUnitDcs.find(u => u.id === id)
-      : confirmedKajaDcs.find(k => k.id === id)
-
-    if (dc) {
-      setItems(dc.items.map(it => ({
-        styleId:   it.styleId ?? '',
+    setLoadingItems(true)
+    try {
+      const lines = await stageGrnApi.sourceItems(type, id)
+      setItems(lines.map(it => ({
+        styleId: it.styleId,
         styleName: it.styleName,
-        gender:    it.gender,
-        standard:  it.standard,
-        sentQty:   it.quantity,
-        receivedQty: it.quantity,
+        gender: it.gender,
+        standard: it.standard,
+        sentQty: it.sentQty,
+        receivedQty: it.sentQty,
         rejectedQty: 0,
       })))
+    } catch (e: any) {
+      setItems([])
+      showError('Load DC Items Failed', e.message)
+    } finally {
+      setLoadingItems(false)
     }
   }
 
@@ -85,9 +117,8 @@ export default function StageGrnPage() {
     setItems(prev => prev.filter((_, i) => i !== idx))
 
   const save = async () => {
-    if (!sourceId) { setError('Select a source DC'); return }
+    if (!sourceType || !sourceId) { setError('Select a source DC'); return }
     if (items.length === 0) { setError('Add at least one item'); return }
-    // Item 6: received qty > sent qty validation
     const overReceived = items.filter(it => it.receivedQty > it.sentQty)
     if (overReceived.length > 0) {
       showError(
@@ -119,7 +150,8 @@ export default function StageGrnPage() {
     )
   }
 
-  const sourceDcs = sourceType === 'UNIT_DC' ? confirmedUnitDcs : confirmedKajaDcs
+  const selectedSource = sources.find(s => s.sourceType === sourceType)
+  const sourceDcs = selectedSource?.confirmedDcs ?? []
 
   return (
     <div className="page">
@@ -127,7 +159,7 @@ export default function StageGrnPage() {
       <div className="page-header">
         <div>
           <div className="page-title">Stage GRN</div>
-          <div className="page-subtitle">Receiving — garments back from stitching units</div>
+          <div className="page-subtitle">Receiving — garments back from production DCs</div>
         </div>
         <button className="btn btn-primary" onClick={openCreate}><Plus size={16} />New Stage GRN</button>
       </div>
@@ -139,17 +171,25 @@ export default function StageGrnPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div className="form-group">
               <label>Source Type *</label>
-              <select value={sourceType} onChange={e => { setSourceType(e.target.value); setSourceId(''); setItems([]) }}>
-                <option value="UNIT_DC">Unit DC</option>
-                <option value="KAJA_DC">KajaButton DC</option>
+              <select value={sourceType} onChange={e => onSourceTypeChange(e.target.value)}>
+                <option value="">Select type</option>
+                {sources.map(s => (
+                  <option key={s.sourceType} value={s.sourceType}>{s.label}</option>
+                ))}
               </select>
             </div>
             <div className="form-group">
               <label>Source DC *</label>
-              <select value={sourceId} onChange={e => onSourceChange(sourceType, e.target.value)}>
-                <option value="">Select {SOURCE_LABELS[sourceType]}</option>
+              <select
+                value={sourceId}
+                disabled={!sourceType}
+                onChange={e => onSourceChange(sourceType, e.target.value)}
+              >
+                <option value="">Select {selectedSource?.label ?? 'DC'}</option>
                 {sourceDcs.map(d => (
-                  <option key={d.id} value={d.id}>{d.dcNumber}</option>
+                  <option key={d.id} value={d.id}>
+                    {d.dcNumber}{d.schoolName ? ` — ${d.schoolName}` : ''}
+                  </option>
                 ))}
               </select>
             </div>
@@ -164,11 +204,10 @@ export default function StageGrnPage() {
             <input placeholder="Optional notes" value={notes} onChange={e => setNotes(e.target.value)} />
           </div>
 
-          {/* Items */}
           <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>
             Items
             <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 8, fontSize: 12 }}>
-              Auto-filled from {SOURCE_LABELS[sourceType]} — adjust received qty as needed
+              Auto-filled from source DC — adjust received qty as needed
             </span>
           </div>
 
@@ -179,7 +218,10 @@ export default function StageGrnPage() {
           </div>
 
           <div style={{ maxHeight: 280, overflowY: 'auto', paddingRight: 4 }}>
-            {items.length === 0 && (
+            {loadingItems && (
+              <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: '8px 0' }}>Loading items…</div>
+            )}
+            {!loadingItems && items.length === 0 && (
               <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: '8px 0' }}>
                 Select a source DC above to auto-fill items.
               </div>
@@ -218,7 +260,17 @@ export default function StageGrnPage() {
       )}
 
       <div className="card">
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[
+            { label: 'Source', options: sourceTypeOptions.map(s => ({ value: s, label: s })), value: sourceFilter, onChange: setSourceFilter, allLabel: 'All sources' },
+            { label: 'Status', options: [{ value: 'DRAFT', label: 'Draft' }, { value: 'CONFIRMED', label: 'Confirmed' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
+          ]}
+          search={{ placeholder: 'GRN #, DC number, school…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="GRNs"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>
@@ -232,13 +284,15 @@ export default function StageGrnPage() {
               </tr>
             </thead>
             <tbody>
-              {records.length === 0 ? (
-                <tr><td colSpan={7}><div className="empty-state">No stage GRNs yet</div></td></tr>
-              ) : records.map(r => (
+              {filtered.length === 0 ? (
+                <tr><td colSpan={7}><div className="empty-state">No stage GRNs match the current filters</div></td></tr>
+              ) : filtered.map(r => (
                 <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/stage-grn/${r.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{r.grnNumber}</td>
-                  <td><span className="badge badge-info">{SOURCE_LABELS[r.sourceType] ?? r.sourceType}</span></td>
-                  <td style={{ fontWeight: 600 }}>{r.sourceDcNumber ?? r.sourceId}</td>
+                  <td><span className="badge badge-info">{r.sourceLabel || r.sourceType}</span></td>
+                  <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: 13 }}>
+                    {r.sourceDcNumber || '—'}
+                  </td>
                   <td>{r.schoolName ?? '—'}</td>
                   <td>{r.receivedDate}</td>
                   <td><span className={`badge ${statusBadge(r.status)}`}>{r.status}</span></td>

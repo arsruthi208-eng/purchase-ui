@@ -8,7 +8,7 @@ import { fabricsApi, type Fabric } from '../api/fabrics'
 import { coloursApi, type Colour } from '../api/colours'
 import { schoolOrdersApi, type SchoolOrderSummary } from '../api/schoolOrders'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, FilterPills, statusBadge, today } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -43,10 +43,12 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
   const navigate = useNavigate()
   const [pos, setPos] = useState<PoSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const { data: parties }      = useApiList<PurchaseParty>(() => purchasePartiesApi.list(kind), [kind])
   const { data: colours }      = useApiList<Colour>(() => coloursApi.list())
   const { data: schoolOrders } = useApiList<SchoolOrderSummary>(() => schoolOrdersApi.list())
   const [filter, setFilter] = useState('')
+  const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<CreatePoRequest>({
     purchasePartyId: '',
@@ -78,12 +80,28 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
 
   const load = (status?: string) => {
     setLoading(true)
-    purchaseOrdersApi.list(status || undefined, kind).then(setPos).finally(() => setLoading(false))
+    setLoadError('')
+    purchaseOrdersApi.list(status || undefined, kind)
+      .then(setPos)
+      .catch((e: Error) => setLoadError(e.message))
+      .finally(() => setLoading(false))
   }
 
   useEffect(() => { load() }, [kind])
 
   const handleFilter = (s: string) => { setFilter(s); load(s) }
+
+  const displayedPos = search
+    ? pos.filter(po => {
+        const q = search.toLowerCase()
+        return (
+          po.poNumber.toLowerCase().includes(q) ||
+          (po.purchasePartyName ?? '').toLowerCase().includes(q) ||
+          (po.schoolOrderNumber ?? '').toLowerCase().includes(q) ||
+          (po.schoolName ?? '').toLowerCase().includes(q)
+        )
+      })
+    : pos
 
   const openCreate = () => {
     setEditingId(null)
@@ -252,8 +270,6 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
         </div>
         <button className="btn btn-primary" onClick={openCreate}><Plus size={16} />New PO</button>
       </div>
-
-      <FilterPills options={ALL_STATUSES} value={filter} onChange={handleFilter} />
 
       {showForm && (
         <Modal title={editingId ? `Edit ${isAccessory ? 'Accessory' : 'Fabric'} PO (Draft)` : `New ${isAccessory ? 'Accessory' : 'Fabric'} Purchase Order`} onClose={() => setShowForm(false)} width={980}>
@@ -522,7 +538,14 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
       )}
 
       <div className="card">
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[{ label: 'Status', options: ALL_STATUSES.map(s => ({ value: s, label: s.replace('_', ' ') })), value: filter, onChange: handleFilter, allLabel: 'All statuses' }]}
+          search={{ placeholder: 'PO number, party, sales order…', value: search, onChange: setSearch }}
+          count={displayedPos.length} countLabel="orders"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>
@@ -537,7 +560,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
               </tr>
             </thead>
             <tbody>
-              {pos.length === 0 ? (
+              {displayedPos.length === 0 ? (
                 <tr>
                   <td colSpan={8}>
                     <div className="empty-state">
@@ -546,7 +569,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                     </div>
                   </td>
                 </tr>
-              ) : pos.map(po => (
+              ) : displayedPos.map(po => (
                 <tr
                   key={po.id}
                   style={{ cursor: 'pointer' }}

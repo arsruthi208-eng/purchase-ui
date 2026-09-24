@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from '../icons'
 import { stylesApi, type Style, type CreateStyleRequest, type UpdateStyleRequest } from '../api/styles'
 import { schoolsApi, type School } from '../api/schools'
-import { Modal, FormError, FormActions, SearchBar, FilterPills, statusBadge } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -13,8 +13,10 @@ export default function Styles() {
   const [patterns, setPatterns] = useState<string[]>([])
   const [schools, setSchools] = useState<School[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [search, setSearch] = useState('')
   const [patternFilter, setPatternFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Style | null>(null)
   const [form, setForm] = useState<CreateStyleRequest>(emptyCreate)
@@ -24,6 +26,7 @@ export default function Styles() {
 
   const load = () => {
     setLoading(true)
+    setLoadError('')
     Promise.all([
       stylesApi.list(patternFilter || undefined),
       stylesApi.patterns(),
@@ -32,15 +35,19 @@ export default function Styles() {
       setItems(s)
       setPatterns(p)
       setSchools(sc.filter(sc => sc.status === 'ACTIVE').sort((a, b) => a.schoolName.localeCompare(b.schoolName)))
-    }).finally(() => setLoading(false))
+    }).catch((e: Error) => setLoadError(e.message))
+      .finally(() => setLoading(false))
   }
 
   useEffect(load, [patternFilter])
 
-  const filtered = items.filter(s =>
-    s.styleName.toLowerCase().includes(search.toLowerCase()) ||
-    s.styleCode.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = items.filter(s => {
+    const matchSearch =
+      s.styleName.toLowerCase().includes(search.toLowerCase()) ||
+      s.styleCode.toLowerCase().includes(search.toLowerCase())
+    const matchStatus = !statusFilter || s.status === statusFilter
+    return matchSearch && matchStatus
+  })
 
   const openCreate = () => {
     setEditing(null)
@@ -117,7 +124,6 @@ export default function Styles() {
         <button className="btn btn-primary" onClick={openCreate}><Plus size={16} />Add Style</button>
       </div>
 
-      <FilterPills options={patterns} value={patternFilter} onChange={setPatternFilter} allLabel="All Patterns" />
 
       {showForm && (
         <Modal title={editing ? 'Edit Style' : 'Add Style'} onClose={() => setShowForm(false)}>
@@ -212,8 +218,17 @@ export default function Styles() {
       )}
 
       <div className="card">
-        <SearchBar value={search} onChange={setSearch} placeholder="Search styles…" />
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[
+            { label: 'Pattern', options: patterns.map(p => ({ value: p, label: p })), value: patternFilter, onChange: setPatternFilter, allLabel: 'All patterns' },
+            { label: 'Status', options: [{ value: 'ACTIVE', label: 'Active' }, { value: 'INACTIVE', label: 'Inactive' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
+          ]}
+          search={{ placeholder: 'Style code or name…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="styles"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>

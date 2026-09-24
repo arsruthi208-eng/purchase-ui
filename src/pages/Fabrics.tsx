@@ -3,7 +3,7 @@ import { Plus, Pencil, Trash2 } from '../icons'
 import { fabricsApi, type Fabric } from '../api/fabrics'
 import { schoolsApi, type School } from '../api/schools'
 import { purchasePartiesApi, type PurchaseParty } from '../api/purchaseParties'
-import { Modal, FormError, FormActions, SearchBar, statusBadge } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -32,10 +32,12 @@ export default function Fabrics() {
   const [schools, setSchools] = useState<School[]>([])
   const [parties, setParties] = useState<PurchaseParty[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [search, setSearch] = useState('')
   const [schoolFilter, setSchoolFilter] = useState('')
   const [partyFilter, setPartyFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Fabric | null>(null)
   const [form, setForm] = useState<FabricForm>(empty)
@@ -46,6 +48,7 @@ export default function Fabrics() {
 
   const load = () => {
     setLoading(true)
+    setLoadError('')
     Promise.all([
       fabricsApi.list(),
       fabricsApi.types(),
@@ -56,6 +59,8 @@ export default function Fabrics() {
       setTypes(t)
       setSchools(s)
       setParties(p)
+    }).catch((e: Error) => {
+      setLoadError(e.message)
     }).finally(() => setLoading(false))
   }
 
@@ -71,7 +76,8 @@ export default function Fabrics() {
     const matchType = !typeFilter || f.fabricType === typeFilter
     const matchSchool = !schoolFilter || (f.schoolIds ?? []).includes(schoolFilter)
     const matchParty = !partyFilter || (f.partyIds ?? []).includes(partyFilter)
-    return matchSearch && matchType && matchSchool && matchParty
+    const matchStatus = !statusFilter || f.status === statusFilter
+    return matchSearch && matchType && matchSchool && matchParty && matchStatus
   })
 
   const openCreate = () => {
@@ -289,31 +295,19 @@ export default function Fabrics() {
       )}
 
       <div className="card">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, padding: '12px 16px 0' }}>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>School</label>
-            <select value={schoolFilter} onChange={e => setSchoolFilter(e.target.value)}>
-              <option value="">All schools</option>
-              {schools.map(s => <option key={s.id} value={s.id}>{s.schoolName}</option>)}
-            </select>
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Purchase party</label>
-            <select value={partyFilter} onChange={e => setPartyFilter(e.target.value)}>
-              <option value="">All parties</option>
-              {parties.map(p => <option key={p.id} value={p.id}>{p.partyName}</option>)}
-            </select>
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Type</label>
-            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-              <option value="">All types</option>
-              {types.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-        </div>
-        <SearchBar value={search} onChange={setSearch} placeholder="Search fabrics, schools, purchase parties…" />
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[
+            { label: 'Type', options: types.map(t => ({ value: t, label: t })), value: typeFilter, onChange: setTypeFilter, allLabel: 'All types' },
+            { label: 'School', options: schools.map(s => ({ value: s.id, label: s.schoolName })), value: schoolFilter, onChange: setSchoolFilter, allLabel: 'All schools' },
+            { label: 'Party', options: parties.map(p => ({ value: p.id, label: p.partyName })), value: partyFilter, onChange: setPartyFilter, allLabel: 'All parties' },
+            { label: 'Status', options: [{ value: 'ACTIVE', label: 'Active' }, { value: 'INACTIVE', label: 'Inactive' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
+          ]}
+          search={{ placeholder: 'Fabric name, code, party…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="fabrics"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>

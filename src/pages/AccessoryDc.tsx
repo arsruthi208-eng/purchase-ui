@@ -7,7 +7,7 @@ import { accessoriesApi, type Accessory } from '../api/accessories'
 import { schoolOrdersApi, type SchoolOrderSummary } from '../api/schoolOrders'
 import { stockApi } from '../api/stock'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, AlertDialog, type StockShortfall, statusBadge, today } from '../components/ui'
+import { Modal, FormError, FormActions, AlertDialog, type StockShortfall, statusBadge, today, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 
 type Line = CreateAccessoryDcRequest['items'][0]
@@ -18,6 +18,10 @@ export default function AccessoryDcPage() {
   const navigate = useNavigate()
   const [items, setItems] = useState<AccessoryDc[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [unitFilter, setUnitFilter] = useState('')
+  const [search, setSearch] = useState('')
 
   const { data: units }        = useApiList<StitchingUnit>(() => stitchingUnitsApi.list())
   const { data: accessories }  = useApiList<Accessory>(() => accessoriesApi.list())
@@ -38,7 +42,11 @@ export default function AccessoryDcPage() {
 
   const load = () => {
     setLoading(true)
-    accessoryDcApi.list().then(setItems).finally(() => setLoading(false))
+    setLoadError('')
+    accessoryDcApi.list()
+      .then(setItems)
+      .catch((e: Error) => setLoadError(e.message))
+      .finally(() => setLoading(false))
   }
 
   useEffect(load, [])
@@ -129,6 +137,16 @@ export default function AccessoryDcPage() {
       async () => { try { await accessoryDcApi.confirm(id); load() } catch (e: any) { showAlertError('Confirm Failed', e.message) } }
     )
   }
+
+  const filtered = items.filter(r => {
+    if (statusFilter && r.status !== statusFilter) return false
+    if (unitFilter && r.stitchingUnitName !== unitFilter) return false
+    if (search) {
+      const q = search.toLowerCase()
+      if (!(r.dcNumber.toLowerCase().includes(q) || (r.schoolOrderNumber ?? '').toLowerCase().includes(q))) return false
+    }
+    return true
+  })
 
   return (
     <div className="page">
@@ -248,7 +266,17 @@ export default function AccessoryDcPage() {
       )}
 
       <div className="card">
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[
+            { label: 'Unit', options: units.map(u => ({ value: u.unitName, label: u.unitName })), value: unitFilter, onChange: setUnitFilter, allLabel: 'All units' },
+            { label: 'Status', options: [{ value: 'DRAFT', label: 'Draft' }, { value: 'CONFIRMED', label: 'Confirmed' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
+          ]}
+          search={{ placeholder: 'DC #, sales order…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="DCs"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>
@@ -263,9 +291,9 @@ export default function AccessoryDcPage() {
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 ? (
+              {filtered.length === 0 ? (
                 <tr><td colSpan={8}><div className="empty-state">No accessory DCs yet</div></td></tr>
-              ) : items.map(d => (
+              ) : filtered.map(d => (
                 <tr key={d.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/accessory-dc/${d.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{d.dcNumber}</td>
                   <td>{d.stitchingUnitName}</td>

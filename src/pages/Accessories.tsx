@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from '../icons'
 import { accessoriesApi, accessoryTypesApi, type Accessory, type AccessoryType, type CreateAccessoryRequest } from '../api/accessories'
 import { purchasePartiesApi, type PurchaseParty } from '../api/purchaseParties'
-import { Modal, FormError, FormActions, SearchBar, statusBadge } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -17,11 +17,13 @@ export default function Accessories() {
   const [types, setTypes] = useState<AccessoryType[]>([])
   const [parties, setParties] = useState<PurchaseParty[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [partyFilter, setPartyFilter] = useState('')
   const [uomFilter, setUomFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Accessory | null>(null)
   const [form, setForm] = useState<CreateAccessoryRequest>(empty)
@@ -31,8 +33,10 @@ export default function Accessories() {
 
   const load = () => {
     setLoading(true)
+    setLoadError('')
     Promise.all([accessoriesApi.list(), accessoryTypesApi.list(), purchasePartiesApi.list('ACCESSORY')])
       .then(([a, t, p]) => { setItems(a); setTypes(t); setParties(p) })
+      .catch((e: Error) => setLoadError(e.message))
       .finally(() => setLoading(false))
   }
 
@@ -50,7 +54,8 @@ export default function Accessories() {
     const matchType = !typeFilter || a.typeId === typeFilter
     const matchParty = !partyFilter || (a.partyIds ?? []).includes(partyFilter)
     const matchUom = !uomFilter || a.unitOfMeasure === uomFilter
-    return matchSearch && matchCat && matchType && matchParty && matchUom
+    const matchStatus = !statusFilter || a.status === statusFilter
+    return matchSearch && matchCat && matchType && matchParty && matchUom && matchStatus
   })
 
   const openCreate = () => {
@@ -148,38 +153,20 @@ export default function Accessories() {
       )}
 
       <div className="card">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, padding: '12px 16px 0' }}>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Category</label>
-            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
-              <option value="">All categories</option>
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Type</label>
-            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-              <option value="">All types</option>
-              {types.map(t => <option key={t.id} value={t.id}>{t.typeName}</option>)}
-            </select>
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>Purchase party</label>
-            <select value={partyFilter} onChange={e => setPartyFilter(e.target.value)}>
-              <option value="">All parties</option>
-              {parties.map(p => <option key={p.id} value={p.id}>{p.partyName}</option>)}
-            </select>
-          </div>
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <label>UOM</label>
-            <select value={uomFilter} onChange={e => setUomFilter(e.target.value)}>
-              <option value="">All UOM</option>
-              {UOMS.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
-          </div>
-        </div>
-        <SearchBar value={search} onChange={setSearch} placeholder="Search accessories…" />
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[
+            { label: 'Category', options: categories.map(c => ({ value: c, label: c })), value: categoryFilter, onChange: setCategoryFilter, allLabel: 'All categories' },
+            { label: 'Type', options: types.map(t => ({ value: t.id, label: t.typeName })), value: typeFilter, onChange: setTypeFilter, allLabel: 'All types' },
+            { label: 'Party', options: parties.map(p => ({ value: p.id, label: p.partyName })), value: partyFilter, onChange: setPartyFilter, allLabel: 'All parties' },
+            { label: 'UOM', options: [...UOMS].map(u => ({ value: u, label: u })), value: uomFilter, onChange: setUomFilter, allLabel: 'All UOM' },
+            { label: 'Status', options: [{ value: 'ACTIVE', label: 'Active' }, { value: 'INACTIVE', label: 'Inactive' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
+          ]}
+          search={{ placeholder: 'Name, code, type, party…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="accessories"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>

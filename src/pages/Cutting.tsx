@@ -10,7 +10,7 @@ import { fabricsApi, type Fabric } from '../api/fabrics'
 import { coloursApi, type Colour } from '../api/colours'
 import { stockApi } from '../api/stock'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, AlertDialog, type StockShortfall, statusBadge, today } from '../components/ui'
+import { Modal, FormError, FormActions, AlertDialog, type StockShortfall, statusBadge, today, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -107,6 +107,10 @@ export default function Cutting() {
   const navigate = useNavigate()
   const [orders, setOrders] = useState<CuttingOrder[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [schoolFilter, setSchoolFilter] = useState('')
+  const [search, setSearch] = useState('')
   const { data: schools }      = useApiList<School>(() => schoolsApi.list())
   const { data: schoolOrders } = useApiList<SchoolOrderSummary>(() => schoolOrdersApi.list())
   const { data: styles }       = useApiList<Style>(() => stylesApi.list())
@@ -135,7 +139,11 @@ export default function Cutting() {
 
   const load = () => {
     setLoading(true)
-    cuttingApi.list().then(setOrders).finally(() => setLoading(false))
+    setLoadError('')
+    cuttingApi.list()
+      .then(setOrders)
+      .catch((e: Error) => setLoadError(e.message))
+      .finally(() => setLoading(false))
   }
   useEffect(load, [])
 
@@ -319,6 +327,16 @@ export default function Cutting() {
     )
   }
 
+  const filtered = orders.filter(r => {
+    if (statusFilter && r.status !== statusFilter) return false
+    if (schoolFilter && r.schoolName !== schoolFilter) return false
+    if (search) {
+      const q = search.toLowerCase()
+      if (!(r.cuttingNumber.toLowerCase().includes(q) || (r.schoolName ?? '').toLowerCase().includes(q) || (r.sentToPersonName ?? '').toLowerCase().includes(q))) return false
+    }
+    return true
+  })
+
   return (
     <div className="page">
       {alertDialog}
@@ -477,7 +495,17 @@ export default function Cutting() {
       )}
 
       <div className="card">
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[
+            { label: 'School', options: Array.from(new Set(orders.map(o => o.schoolName))).sort().map(n => ({ value: n, label: n })), value: schoolFilter, onChange: setSchoolFilter, allLabel: 'All schools' },
+            { label: 'Status', options: [{ value: 'DRAFT', label: 'Draft' }, { value: 'CONFIRMED', label: 'Confirmed' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
+          ]}
+          search={{ placeholder: 'Cutting #, school, received by…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="orders"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>
@@ -491,9 +519,9 @@ export default function Cutting() {
               </tr>
             </thead>
             <tbody>
-              {orders.length === 0 ? (
+              {filtered.length === 0 ? (
                 <tr><td colSpan={6}><div className="empty-state">No cutting orders yet</div></td></tr>
-              ) : orders.map(o => (
+              ) : filtered.map(o => (
                 <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/cutting/${o.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{o.cuttingNumber}</td>
                   <td>{o.schoolName}</td>

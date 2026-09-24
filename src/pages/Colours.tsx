@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from '../icons'
 import { coloursApi, type Colour, type CreateColourRequest } from '../api/colours'
-import { Modal, FormError, FormActions, SearchBar, statusBadge } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -10,6 +10,8 @@ const empty: CreateColourRequest = { colourName: '', hexCode: '' }
 export default function Colours() {
   const [items, setItems] = useState<Colour[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Colour | null>(null)
@@ -20,15 +22,22 @@ export default function Colours() {
 
   const load = () => {
     setLoading(true)
-    coloursApi.list().then(setItems).finally(() => setLoading(false))
+    setLoadError('')
+    coloursApi.list()
+      .then(setItems)
+      .catch((e: Error) => setLoadError(e.message))
+      .finally(() => setLoading(false))
   }
 
   useEffect(load, [])
 
-  const filtered = items.filter(c =>
-    c.colourName.toLowerCase().includes(search.toLowerCase()) ||
-    (c.hexCode ?? '').toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = items.filter(c => {
+    if (statusFilter && c.status !== statusFilter) return false
+    return (
+      c.colourName.toLowerCase().includes(search.toLowerCase()) ||
+      (c.hexCode ?? '').toLowerCase().includes(search.toLowerCase())
+    )
+  })
 
   const openCreate = () => {
     setEditing(null)
@@ -105,8 +114,14 @@ export default function Colours() {
       )}
 
       <div className="card">
-        <SearchBar value={search} onChange={setSearch} placeholder="Search colours…" />
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[{ label: 'Status', options: [{ value: 'ACTIVE', label: 'Active' }, { value: 'INACTIVE', label: 'Inactive' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' }]}
+          search={{ placeholder: 'Colour name or hex code…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="colours"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>

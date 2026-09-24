@@ -6,7 +6,7 @@ import { schoolsApi, type School } from '../api/schools'
 import { schoolOrdersApi, type SchoolOrderSummary, type SchoolOrderDetail } from '../api/schoolOrders'
 import { stylesApi, type Style } from '../api/styles'
 import { accessoriesApi, type Accessory } from '../api/accessories'
-import { Modal, FormError, FormActions, statusBadge, today } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -24,6 +24,10 @@ export default function Packing() {
   const [styles, setStyles] = useState<Style[]>([])
   const [accessories, setAccessories] = useState<Accessory[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [schoolFilter, setSchoolFilter] = useState('')
+  const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<CreatePackingRequest>({
     schoolId: '', packingDate: today(), items: [emptyLine()],
@@ -37,7 +41,11 @@ export default function Packing() {
 
   const load = () => {
     setLoading(true)
-    packingApi.list().then(setItems).finally(() => setLoading(false))
+    setLoadError('')
+    packingApi.list()
+      .then(setItems)
+      .catch((e: Error) => setLoadError(e.message))
+      .finally(() => setLoading(false))
   }
 
   useEffect(load, [])
@@ -109,6 +117,16 @@ export default function Packing() {
       async () => { try { await packingApi.confirm(id); load() } catch (e: any) { isForbiddenError(e) ? showError('Access Denied', PERMISSION_DENIED_MSG) : showError('Confirm Failed', e.message) } }
     )
   }
+
+  const filtered = items.filter(r => {
+    if (statusFilter && r.status !== statusFilter) return false
+    if (schoolFilter && r.schoolName !== schoolFilter) return false
+    if (search) {
+      const q = search.toLowerCase()
+      if (!(r.packingNumber.toLowerCase().includes(q) || r.schoolName.toLowerCase().includes(q))) return false
+    }
+    return true
+  })
 
   return (
     <div className="page">
@@ -186,7 +204,17 @@ export default function Packing() {
       )}
 
       <div className="card">
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[
+            { label: 'School', options: Array.from(new Set(items.map(i => i.schoolName))).sort().map(n => ({ value: n, label: n })), value: schoolFilter, onChange: setSchoolFilter, allLabel: 'All schools' },
+            { label: 'Status', options: [{ value: 'DRAFT', label: 'Draft' }, { value: 'CONFIRMED', label: 'Confirmed' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
+          ]}
+          search={{ placeholder: 'Packing #, school…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="entries"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>
@@ -199,9 +227,9 @@ export default function Packing() {
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 ? (
+              {filtered.length === 0 ? (
                 <tr><td colSpan={6}><div className="empty-state">No packing entries yet</div></td></tr>
-              ) : items.map(p => (
+              ) : filtered.map(p => (
                 <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/packing/${p.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{p.packingNumber}</td>
                   <td>{p.schoolName}</td>

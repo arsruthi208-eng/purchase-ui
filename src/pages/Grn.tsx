@@ -5,7 +5,7 @@ import { grnApi, type GrnSummary, type CreateGrnRequest, type CreateGrnItemReque
 import { type RollEntry, fabricRollsApi } from '../api/fabricRolls'
 import { purchaseOrdersApi, type PoSummary } from '../api/purchaseOrders'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, statusBadge, today } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -24,6 +24,10 @@ export default function Grn() {
   const navigate = useNavigate()
   const [items, setItems] = useState<GrnSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [kindFilter, setKindFilter] = useState('')
+  const [search, setSearch] = useState('')
   const { data: openPos } = useApiList<PoSummary>(() => purchaseOrdersApi.list('OPEN'))
   const [loadingPo, setLoadingPo] = useState(false)
 
@@ -40,7 +44,11 @@ export default function Grn() {
 
   const load = () => {
     setLoading(true)
-    grnApi.list().then(setItems).finally(() => setLoading(false))
+    setLoadError('')
+    grnApi.list()
+      .then(setItems)
+      .catch((e: Error) => setLoadError(e.message))
+      .finally(() => setLoading(false))
   }
   useEffect(load, [])
 
@@ -129,6 +137,16 @@ export default function Grn() {
       async () => { try { await grnApi.confirm(id); load() } catch (e: any) { isForbiddenError(e) ? showError('Access Denied', PERMISSION_DENIED_MSG) : showError('Confirm Failed', e.message) } }
     )
   }
+
+  const filtered = items.filter(r => {
+    if (statusFilter && r.status !== statusFilter) return false
+    if (kindFilter && r.grnKind !== kindFilter) return false
+    if (search) {
+      const q = search.toLowerCase()
+      if (!(r.grnNumber.toLowerCase().includes(q) || r.poNumber.toLowerCase().includes(q))) return false
+    }
+    return true
+  })
 
   return (
     <div className="page">
@@ -316,7 +334,17 @@ export default function Grn() {
       )}
 
       <div className="card">
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[
+            { label: 'Kind', options: [{ value: 'FABRIC', label: 'Fabric' }, { value: 'ACCESSORY', label: 'Accessory' }], value: kindFilter, onChange: setKindFilter, allLabel: 'All kinds' },
+            { label: 'Status', options: [{ value: 'DRAFT', label: 'Draft' }, { value: 'CONFIRMED', label: 'Confirmed' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
+          ]}
+          search={{ placeholder: 'GRN number, PO number…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="GRNs"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>
@@ -329,9 +357,9 @@ export default function Grn() {
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 ? (
+              {filtered.length === 0 ? (
                 <tr><td colSpan={6}><div className="empty-state">No GRNs yet</div></td></tr>
-              ) : items.map(g => (
+              ) : filtered.map(g => (
                 <tr key={g.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/grn/${g.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{g.grnNumber}</td>
                   <td>{g.poNumber}</td>

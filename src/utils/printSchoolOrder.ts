@@ -279,7 +279,7 @@ function buildHtml(order: SchoolOrderDetail, logoDataUrl: string): string {
   </div>
   <script>
     window.onload = function () {
-      document.title = '';
+      document.title = '${order.orderNumber}';
       setTimeout(function () { window.print(); }, 300);
     };
     window.onafterprint = function () { window.close(); };

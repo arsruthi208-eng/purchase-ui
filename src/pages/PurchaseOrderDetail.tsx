@@ -284,6 +284,7 @@ export default function PurchaseOrderDetail() {
                 <td><span className={`badge ${statusBadge(item.status)}`}>{item.status.replace(/_/g, ' ')}</span></td>
               </tr>
             ))}
+          </tbody>
         </table>
       </div>
     </div>

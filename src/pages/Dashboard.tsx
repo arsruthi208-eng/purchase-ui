@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { dashboardApi, type ProductionReport, type DepartmentStatus, type ProductionReportOrder } from '../api/dashboard'
 import { PRODUCTION_STAGES, STAGE_LABELS } from '../api/schoolOrders'
+import { LoadError } from '../components/ui'
 
 const PAGE_SIZE = 100
 const DEPTS = ['cutting', 'unit', 'kaja', 'ironing', 'packing', 'dispatch'] as const
@@ -76,18 +77,23 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [report, setReport] = useState<ProductionReport | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [orderId, setOrderId] = useState('')
   const [styleId, setStyleId] = useState('')
   const [query, setQuery] = useState('')
   const [stage, setStage] = useState('')
   const [page, setPage] = useState(1)
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true)
+    setLoadError(null)
     dashboardApi.productionReport()
-      .then(setReport)
-      .catch(() => setReport({ orders: [] }))
+      .then(data => { setReport(data); setLoadError(null) })
+      .catch((e: Error) => { setReport(null); setLoadError(e.message) })
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(load, [])
 
   const rows = useMemo<FlatRow[]>(() => {
     if (!report) return []
@@ -200,6 +206,8 @@ export default function Dashboard() {
 
         {loading ? (
           <div className="loading">Loading production report…</div>
+        ) : loadError ? (
+          <LoadError message={loadError} onRetry={load} />
         ) : filtered.length === 0 ? (
           <div className="empty-state">No style lines match the current filters.</div>
         ) : (

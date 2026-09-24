@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Pencil, Trash2 } from '../icons'
 import { purchasePartiesApi, type PurchaseParty, type CreatePurchasePartyRequest } from '../api/purchaseParties'
-import { Modal, FormError, FormActions, SearchBar, FilterPills, statusBadge } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -14,7 +14,9 @@ export default function PurchaseParties() {
   const navigate = useNavigate()
   const [items, setItems] = useState<PurchaseParty[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [kindFilter, setKindFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<PurchaseParty | null>(null)
@@ -25,7 +27,11 @@ export default function PurchaseParties() {
 
   const load = () => {
     setLoading(true)
-    purchasePartiesApi.list().then(setItems).finally(() => setLoading(false))
+    setLoadError('')
+    purchasePartiesApi.list()
+      .then(setItems)
+      .catch((e: Error) => setLoadError(e.message))
+      .finally(() => setLoading(false))
   }
 
   useEffect(load, [])
@@ -37,7 +43,8 @@ export default function PurchaseParties() {
       (b.companyName ?? '').toLowerCase().includes(q) ||
       (b.gstNumber ?? '').toLowerCase().includes(q)
     const matchKind = !kindFilter || b.partyKind === kindFilter
-    return matchSearch && matchKind
+    const matchStatus = !statusFilter || b.status === statusFilter
+    return matchSearch && matchKind && matchStatus
   })
 
   const openCreate = () => {
@@ -147,11 +154,18 @@ export default function PurchaseParties() {
         </Modal>
       )}
 
-      <FilterPills options={['FABRIC', 'ACCESSORY']} value={kindFilter} onChange={setKindFilter} />
-
       <div className="card">
-        <SearchBar value={search} onChange={setSearch} placeholder="Search purchase parties…" />
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[
+            { label: 'Kind', options: [{ value: 'FABRIC', label: 'Fabric' }, { value: 'ACCESSORY', label: 'Accessory' }], value: kindFilter, onChange: setKindFilter, allLabel: 'All kinds' },
+            { label: 'Status', options: [{ value: 'ACTIVE', label: 'Active' }, { value: 'INACTIVE', label: 'Inactive' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
+          ]}
+          search={{ placeholder: 'Party name, company, GST…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="parties"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>

@@ -109,7 +109,6 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
       <td style="text-align:center">${dash(item.unitOfMeasure)}</td>
       <td style="text-align:right">${fmtN(item.orderedQuantity)} ${qtyLabel(item.unitOfMeasure)}</td>
       <td style="text-align:right">₹${item.unitPrice.toFixed(2)}</td>
-      <td style="text-align:right">₹${fmt(item.orderedQuantity * item.unitPrice)}</td>
     </tr>
   `).join('')
     : po.items.map((item, idx) => `
@@ -122,14 +121,13 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
       <td style="text-align:center">${item.weightGsm != null ? item.weightGsm : '—'}</td>
       <td style="text-align:right">${fmtN(item.orderedQuantity)} ${qtyLabel(item.unitOfMeasure)}</td>
       <td style="text-align:right">₹${item.unitPrice.toFixed(2)}</td>
-      <td style="text-align:right">₹${fmt(item.orderedQuantity * item.unitPrice)}</td>
     </tr>
   `).join('')
 
   const itemsTable = isAcc
     ? `<table class="items-tbl acc-items">
     <colgroup>
-      <col><col><col><col><col><col><col>
+      <col><col><col><col><col><col>
     </colgroup>
     <thead>
       <tr>
@@ -139,7 +137,6 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
         <th>UOM</th>
         <th>Quantity</th>
         <th>Unit Price (₹)</th>
-        <th>Total Amount (₹)</th>
       </tr>
     </thead>
     <tbody>
@@ -148,11 +145,6 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
         <td colspan="4" style="text-align:right">Total Quantity</td>
         <td style="text-align:right">${totalQtyText}</td>
         <td></td>
-        <td></td>
-      </tr>
-      <tr class="total-row">
-        <td colspan="6" style="text-align:right">Grand Total</td>
-        <td style="text-align:right">₹${fmt(totalValue)}</td>
       </tr>
     </tbody>
   </table>`
@@ -167,7 +159,6 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
         <th style="width:56px">GSM</th>
         <th>Quantity</th>
         <th>Unit Price (₹ / metre)</th>
-        <th>Total Amount (₹)</th>
       </tr>
     </thead>
     <tbody>
@@ -176,11 +167,6 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
         <td colspan="6" style="text-align:right">Total Quantity</td>
         <td style="text-align:right">${totalQtyText}</td>
         <td></td>
-        <td></td>
-      </tr>
-      <tr class="total-row">
-        <td colspan="8" style="text-align:right">Grand Total</td>
-        <td style="text-align:right">₹${fmt(totalValue)}</td>
       </tr>
     </tbody>
   </table>`
@@ -476,7 +462,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
     </tbody>
   </table>
 
-  ${isAcc ? '' : '<div class="swatch">FABRIC SAMPLE / SWATCH — Attach fabric swatch here</div>'}
+  <div class="swatch">${isAcc ? 'ACCESSORY SAMPLE / SWATCH — Attach accessory swatch here' : 'FABRIC SAMPLE / SWATCH — Attach fabric swatch here'}</div>
 
   <div class="terms-box">
     <div class="terms-tab">Terms &amp; Conditions</div>
@@ -490,7 +476,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
 
   <script>
     window.onload = function () {
-      document.title = '';
+      document.title = '${po.poNumber}';
       setTimeout(function () { window.print(); }, 300);
     };
     window.onafterprint = function () { window.close(); };

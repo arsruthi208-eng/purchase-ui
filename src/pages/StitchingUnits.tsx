@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from '../icons'
 import { stitchingUnitsApi, type StitchingUnit, type CreateStitchingUnitRequest } from '../api/stitchingUnits'
-import { Modal, FormError, FormActions, SearchBar, statusBadge } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -12,6 +12,8 @@ const empty: CreateStitchingUnitRequest = { unitName: '', unitType: '', address:
 export default function StitchingUnits() {
   const [items, setItems] = useState<StitchingUnit[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<StitchingUnit | null>(null)
@@ -22,15 +24,28 @@ export default function StitchingUnits() {
 
   const load = () => {
     setLoading(true)
-    stitchingUnitsApi.list().then(setItems).finally(() => setLoading(false))
+    setLoadError('')
+    stitchingUnitsApi.list()
+      .then(setItems)
+      .catch((e: Error) => setLoadError(e.message))
+      .finally(() => setLoading(false))
   }
 
   useEffect(load, [])
 
-  const filtered = items.filter(u =>
-    u.unitName.toLowerCase().includes(search.toLowerCase()) ||
-    (u.phone ?? '').includes(search)
-  )
+  const [unitTypeFilter, setUnitTypeFilter] = useState('')
+
+  const filtered = items.filter(u => {
+    if (statusFilter && u.status !== statusFilter) return false
+    if (unitTypeFilter && u.unitType !== unitTypeFilter) return false
+    if (!search) return true
+    const q = search.toLowerCase()
+    return (
+      u.unitName.toLowerCase().includes(q) ||
+      (u.unitType ?? '').toLowerCase().includes(q) ||
+      (u.phone ?? '').includes(search)
+    )
+  })
 
   const openCreate = () => {
     setEditing(null)
@@ -105,8 +120,17 @@ export default function StitchingUnits() {
       )}
 
       <div className="card">
-        <SearchBar value={search} onChange={setSearch} placeholder="Search stitching units…" />
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[
+            { label: 'Type', options: UNIT_TYPES.map(t => ({ value: t, label: t })), value: unitTypeFilter, onChange: setUnitTypeFilter, allLabel: 'All types' },
+            { label: 'Status', options: [{ value: 'ACTIVE', label: 'Active' }, { value: 'INACTIVE', label: 'Inactive' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
+          ]}
+          search={{ placeholder: 'Unit name, type, phone…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="units"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>

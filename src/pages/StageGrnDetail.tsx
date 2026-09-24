@@ -9,6 +9,9 @@ import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 const SOURCE_LABELS: Record<string, string> = {
   UNIT_DC: 'Unit DC',
   KAJA_DC: 'KajaButton DC',
+  CUTTING_DC: 'Cutting DC',
+  IRONING_DC: 'Ironing DC',
+  CHECKING_DC: 'Checking DC',
 }
 
 export default function StageGrnDetail() {
@@ -61,7 +64,8 @@ export default function StageGrnDetail() {
         <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 14, columnGap: 40 }}>
           <InfoRow label="GRN Number"   value={doc.grnNumber} />
           <InfoRow label="Received Date" value={doc.receivedDate} />
-          <InfoRow label="Source Type"  value={SOURCE_LABELS[doc.sourceType] ?? doc.sourceType} />
+          <InfoRow label="Source Type"  value={doc.sourceLabel || SOURCE_LABELS[doc.sourceType] || doc.sourceType} />
+          <InfoRow label="Source DC"    value={doc.sourceDcNumber || '—'} />
           <InfoRow label="School"       value={doc.schoolName ?? '—'} />
           <InfoRow label="Sales Order" value={doc.schoolOrderNumber ?? '—'} />
           <InfoRow label="Status"       value={doc.status} />

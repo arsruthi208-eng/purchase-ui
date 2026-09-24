@@ -40,12 +40,17 @@ export default function CuttingDetail() {
             <span className={`badge ${statusBadge(doc.status)}`}>{doc.status}</span>
           </div>
         </div>
-        {doc.status === 'DRAFT' && (
-          <button className="btn btn-primary" disabled={busy}
-            onClick={() => showConfirm('Confirm Cutting Order', 'Fabric stock will be deducted. This cannot be undone.', doConfirmOrder)}>
-            {busy ? 'Confirming…' : 'Confirm Cutting'}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={() => { document.title = doc.cuttingNumber; window.print() }}>
+            Print DC
           </button>
-        )}
+          {doc.status === 'DRAFT' && (
+            <button className="btn btn-primary" disabled={busy}
+              onClick={() => showConfirm('Confirm Cutting Order', 'Fabric stock will be deducted. This cannot be undone.', doConfirmOrder)}>
+              {busy ? 'Confirming…' : 'Confirm Cutting'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>

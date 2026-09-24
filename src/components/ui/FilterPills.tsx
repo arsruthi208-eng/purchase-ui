@@ -3,11 +3,13 @@ export function FilterPills({
   value,
   onChange,
   allLabel = 'All',
+  labels,
 }: {
   options: string[]
   value: string
   onChange: (v: string) => void
   allLabel?: string
+  labels?: Record<string, string>
 }) {
   return (
     <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -23,7 +25,7 @@ export function FilterPills({
             color: value === opt ? 'var(--white)' : 'var(--text-muted)',
           }}
         >
-          {opt || allLabel}
+          {opt ? (labels?.[opt] ?? opt) : allLabel}
         </button>
       ))}
     </div>

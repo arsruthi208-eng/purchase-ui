@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from '../icons'
 import { schoolsApi, type School, type CreateSchoolRequest } from '../api/schools'
-import { SearchBar } from '../components/ui'
+import { LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
 export default function Schools() {
   const [schools, setSchools] = useState<School[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
+  const boards = Array.from(new Set(schools.map(s => s.board).filter(Boolean))).sort()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<School | null>(null)
   const [form, setForm] = useState<CreateSchoolRequest>({ schoolCode: '', schoolName: '' })
@@ -18,15 +21,25 @@ export default function Schools() {
 
   const load = () => {
     setLoading(true)
-    schoolsApi.list().then(setSchools).finally(() => setLoading(false))
+    setLoadError('')
+    schoolsApi.list()
+      .then(setSchools)
+      .catch((e: Error) => setLoadError(e.message))
+      .finally(() => setLoading(false))
   }
 
   useEffect(load, [])
 
-  const filtered = schools.filter(s =>
-    s.schoolName.toLowerCase().includes(search.toLowerCase()) ||
-    s.schoolCode.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = schools.filter(s => {
+    if (statusFilter && s.status !== statusFilter) return false
+    if (!search) return true
+    const q = search.toLowerCase()
+    return (
+      s.schoolName.toLowerCase().includes(q) ||
+      s.schoolCode.toLowerCase().includes(q) ||
+      (s.contactPerson ?? '').toLowerCase().includes(q)
+    )
+  })
 
   const openCreate = () => {
     setEditing(null)
@@ -103,8 +116,14 @@ export default function Schools() {
       )}
 
       <div className="card">
-        <SearchBar value={search} onChange={setSearch} placeholder="Search schools…" />
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[{ label: 'Status', options: [{ value: 'ACTIVE', label: 'Active' }, { value: 'INACTIVE', label: 'Inactive' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' }]}
+          search={{ placeholder: 'School name, code, contact…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="schools"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead><tr><th>Code</th><th>School Name</th><th>Contact</th><th>Phone</th><th>Status</th><th style={{ width: 80 }}></th></tr></thead>
             <tbody>

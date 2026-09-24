@@ -1,6 +1,10 @@
 import axios from 'axios'
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
+/**
+ * Empty / unset → same-origin `/api` (Vite proxy → localhost:8080 in dev).
+ * Set VITE_API_URL for production / Electron builds.
+ */
+const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim() || ''
 
 export const api = axios.create({
   baseURL: BASE_URL,
@@ -24,6 +28,14 @@ api.interceptors.request.use(config => {
   return config
 })
 
+function networkErrorMessage(error: { code?: string; message?: string }): string {
+  const target = BASE_URL || 'http://localhost:8080 (via Vite proxy)'
+  if (error.code === 'ECONNABORTED') {
+    return `Request timed out talking to purchase service (${target}). Is ./gradlew bootRun running?`
+  }
+  return `Cannot reach purchase service (${target}). Start backend: cd purchase && ./gradlew bootRun`
+}
+
 // RESPONSE — unwrap ApiResponse envelope; handle 401 only for authenticated sessions
 api.interceptors.response.use(
   (response) => {
@@ -43,7 +55,9 @@ api.interceptors.response.use(
         return new Promise(() => {}) // halt promise chain while redirecting
       }
     }
-    const message = error.response?.data?.message ?? 'An unexpected error occurred'
+    const message = !error.response
+      ? networkErrorMessage(error)
+      : (error.response?.data?.message ?? 'An unexpected error occurred')
     const err = new Error(message)
     ;(err as any).httpStatus = error.response?.status
     return Promise.reject(err)

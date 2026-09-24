@@ -5,7 +5,7 @@ import { dispatchApi, type DispatchEntry, type CreateDispatchRequest } from '../
 import { schoolsApi, type School } from '../api/schools'
 import { schoolOrdersApi, type SchoolOrderSummary } from '../api/schoolOrders'
 import { stylesApi, type Style } from '../api/styles'
-import { Modal, FormError, FormActions, statusBadge, today } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -20,6 +20,10 @@ export default function Dispatch() {
   const [schoolOrders, setSchoolOrders] = useState<SchoolOrderSummary[]>([])
   const [styles, setStyles] = useState<Style[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [schoolFilter, setSchoolFilter] = useState('')
+  const [search, setSearch] = useState('')
 
   const confirmedOrders = schoolOrders.filter(o => o.status === 'CONFIRMED')
   const { dialog, showError, showConfirm } = useAlertDialog()
@@ -37,7 +41,11 @@ export default function Dispatch() {
 
   const load = () => {
     setLoading(true)
-    dispatchApi.list().then(setItems).finally(() => setLoading(false))
+    setLoadError('')
+    dispatchApi.list()
+      .then(setItems)
+      .catch((e: Error) => setLoadError(e.message))
+      .finally(() => setLoading(false))
   }
 
   useEffect(load, [])
@@ -87,6 +95,16 @@ export default function Dispatch() {
       async () => { try { await dispatchApi.dispatch(id); load() } catch (e: any) { isForbiddenError(e) ? showError('Access Denied', PERMISSION_DENIED_MSG) : showError('Dispatch Failed', e.message) } }
     )
   }
+
+  const filtered = items.filter(r => {
+    if (statusFilter && r.status !== statusFilter) return false
+    if (schoolFilter && r.schoolName !== schoolFilter) return false
+    if (search) {
+      const q = search.toLowerCase()
+      if (!(r.dispatchNumber.toLowerCase().includes(q) || r.schoolName.toLowerCase().includes(q) || (r.vehicleNumber ?? '').toLowerCase().includes(q))) return false
+    }
+    return true
+  })
 
   return (
     <div className="page">
@@ -162,7 +180,17 @@ export default function Dispatch() {
       )}
 
       <div className="card">
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[
+            { label: 'School', options: Array.from(new Set(items.map(i => i.schoolName))).sort().map(n => ({ value: n, label: n })), value: schoolFilter, onChange: setSchoolFilter, allLabel: 'All schools' },
+            { label: 'Status', options: [{ value: 'DRAFT', label: 'Draft' }, { value: 'DISPATCHED', label: 'Dispatched' }, { value: 'CONFIRMED', label: 'Confirmed' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
+          ]}
+          search={{ placeholder: 'Dispatch #, school, vehicle…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="entries"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>
@@ -175,9 +203,9 @@ export default function Dispatch() {
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 ? (
+              {filtered.length === 0 ? (
                 <tr><td colSpan={6}><div className="empty-state">No dispatch entries yet</div></td></tr>
-              ) : items.map(d => (
+              ) : filtered.map(d => (
                 <tr key={d.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/dispatch/${d.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{d.dispatchNumber}</td>
                   <td>{d.schoolName}</td>

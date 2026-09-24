@@ -8,7 +8,7 @@ import {
 import { schoolsApi, type School } from '../api/schools'
 import { stylesApi, type Style } from '../api/styles'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, statusBadge, today } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -32,6 +32,11 @@ export default function SchoolOrders() {
   const navigate = useNavigate()
   const [orders, setOrders] = useState<SchoolOrderSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [kindFilter, setKindFilter] = useState('')
+  const [schoolIdFilter, setSchoolIdFilter] = useState('')
+  const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<CreateSchoolOrderRequest>(emptyForm())
@@ -45,7 +50,11 @@ export default function SchoolOrders() {
   const kind = form.orderKind
   const load = () => {
     setLoading(true)
-    schoolOrdersApi.list().then(setOrders).finally(() => setLoading(false))
+    setLoadError('')
+    schoolOrdersApi.list()
+      .then(setOrders)
+      .catch((e: Error) => setLoadError(e.message))
+      .finally(() => setLoading(false))
   }
 
   useEffect(load, [])
@@ -170,6 +179,17 @@ export default function SchoolOrders() {
       ? ['Style *', 'Gender', 'Year *', 'Students', 'Sets', 'Group', '']
       : ['Style *', 'Gender', 'STD *', 'Total students *', 'No. of students *', 'Qty *', '']
 
+  const filtered = orders.filter(r => {
+    if (statusFilter && r.status !== statusFilter) return false
+    if (kindFilter && r.orderKind !== kindFilter) return false
+    if (schoolIdFilter && r.schoolId !== schoolIdFilter) return false
+    if (search) {
+      const q = search.toLowerCase()
+      if (!(r.orderNumber.toLowerCase().includes(q) || r.schoolName.toLowerCase().includes(q) || (r.academicYear ?? '').includes(q))) return false
+    }
+    return true
+  })
+
   return (
     <div className="page">
       {dialog}
@@ -289,7 +309,18 @@ export default function SchoolOrders() {
       )}
 
       <div className="card">
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[
+            { label: 'School', options: schools.map(s => ({ value: s.id, label: s.schoolName })), value: schoolIdFilter, onChange: setSchoolIdFilter, allLabel: 'All schools' },
+            { label: 'Type', options: KINDS.map(k => ({ value: k, label: ORDER_KIND_LABEL[k] })), value: kindFilter, onChange: setKindFilter, allLabel: 'All types' },
+            { label: 'Status', options: [{ value: 'DRAFT', label: 'Draft' }, { value: 'CONFIRMED', label: 'Confirmed' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
+          ]}
+          search={{ placeholder: 'Order number, school, year…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="orders"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>
@@ -305,9 +336,9 @@ export default function SchoolOrders() {
               </tr>
             </thead>
             <tbody>
-              {orders.length === 0 ? (
+              {filtered.length === 0 ? (
                 <tr><td colSpan={9}><div className="empty-state">No school orders yet</div></td></tr>
-              ) : orders.map(o => (
+              ) : filtered.map(o => (
                 <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/school-orders/${o.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)', fontFamily: 'monospace', fontSize: 13 }}>{o.orderNumber}</td>
                   <td style={{ fontWeight: 500 }}>{o.schoolName}</td>

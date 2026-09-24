@@ -5,7 +5,7 @@ import { ironingDcApi, type IroningDc, type CreateIroningDcRequest } from '../ap
 import { stitchingUnitsApi, type StitchingUnit } from '../api/stitchingUnits'
 import { schoolOrdersApi, type SchoolOrderSummary, type SchoolOrderDetail } from '../api/schoolOrders'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, statusBadge, today } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -17,6 +17,10 @@ export default function IroningDc() {
   const navigate = useNavigate()
   const [items, setItems] = useState<IroningDc[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [unitFilter, setUnitFilter] = useState('')
+  const [search, setSearch] = useState('')
   const { data: units } = useApiList<StitchingUnit>(() => stitchingUnitsApi.list())
   const { data: schoolOrders } = useApiList<SchoolOrderSummary>(() => schoolOrdersApi.list())
   const confirmedOrders = schoolOrders.filter(o => o.status === 'CONFIRMED')
@@ -33,7 +37,11 @@ export default function IroningDc() {
 
   const load = () => {
     setLoading(true)
-    ironingDcApi.list().then(setItems).finally(() => setLoading(false))
+    setLoadError('')
+    ironingDcApi.list()
+      .then(setItems)
+      .catch((e: Error) => setLoadError(e.message))
+      .finally(() => setLoading(false))
   }
 
   useEffect(load, [])
@@ -95,6 +103,16 @@ export default function IroningDc() {
       async () => { try { await ironingDcApi.confirm(id); load() } catch (e: any) { isForbiddenError(e) ? showError('Access Denied', PERMISSION_DENIED_MSG) : showError('Confirm Failed', e.message) } }
     )
   }
+
+  const filtered = items.filter(r => {
+    if (statusFilter && r.status !== statusFilter) return false
+    if (unitFilter && r.stitchingUnitName !== unitFilter) return false
+    if (search) {
+      const q = search.toLowerCase()
+      if (!(r.dcNumber.toLowerCase().includes(q) || (r.schoolOrderNumber ?? '').toLowerCase().includes(q) || (r.schoolName ?? '').toLowerCase().includes(q))) return false
+    }
+    return true
+  })
 
   return (
     <div className="page">
@@ -221,7 +239,17 @@ export default function IroningDc() {
       )}
 
       <div className="card">
-        {loading ? <div className="loading">Loading…</div> : (
+        <FilterBar
+          filters={[
+            { label: 'Unit', options: units.map(u => ({ value: u.unitName, label: u.unitName })), value: unitFilter, onChange: setUnitFilter, allLabel: 'All units' },
+            { label: 'Status', options: [{ value: 'DRAFT', label: 'Draft' }, { value: 'CONFIRMED', label: 'Confirmed' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
+          ]}
+          search={{ placeholder: 'DC #, sales order, school…', value: search, onChange: setSearch }}
+          count={filtered.length} countLabel="DCs"
+        />
+        {loadError ? (
+          <LoadError message={loadError} onRetry={load} />
+        ) : loading ? <div className="loading">Loading…</div> : (
           <table>
             <thead>
               <tr>
@@ -235,9 +263,9 @@ export default function IroningDc() {
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 ? (
+              {filtered.length === 0 ? (
                 <tr><td colSpan={7}><div className="empty-state">No ironing DCs yet</div></td></tr>
-              ) : items.map(d => (
+              ) : filtered.map(d => (
                 <tr key={d.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/ironing-dc/${d.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{d.dcNumber}</td>
                   <td>{d.schoolOrderNumber ?? '—'}</td>

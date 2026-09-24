@@ -39,12 +39,15 @@ export default function IroningDcDetail() {
             <span className={`badge ${statusBadge(doc.status)}`}>{doc.status}</span>
           </div>
         </div>
-        {doc.status === 'DRAFT' && (
-          <button className="btn btn-primary" disabled={busy}
-            onClick={() => showConfirm('Confirm Ironing DC', 'Garments will be marked as ironed. This cannot be undone.', doConfirmDc)}>
-            {busy ? 'Confirming…' : 'Confirm DC'}
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-secondary" onClick={() => { document.title = doc.dcNumber; window.print() }}>Print DC</button>
+          {doc.status === 'DRAFT' && (
+            <button className="btn btn-primary" disabled={busy}
+              onClick={() => showConfirm('Confirm Ironing DC', 'Garments will be marked as ironed. This cannot be undone.', doConfirmDc)}>
+              {busy ? 'Confirming…' : 'Confirm DC'}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>

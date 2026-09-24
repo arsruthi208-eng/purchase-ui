@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { compressImage } from '../api/auth'
+import { FilterBar } from '../components/ui'
 
 interface AppUser {
   id: string
@@ -34,6 +35,9 @@ const ROLE_COLORS: Record<string, string> = {
 export default function Users() {
   const [users, setUsers] = useState<AppUser[]>([])
   const [loading, setLoading] = useState(true)
+  const [roleFilter, setRoleFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editUser, setEditUser] = useState<AppUser | null>(null)
   const [newPasswordResult, setNewPasswordResult] = useState<{ username: string; password: string } | null>(null)
@@ -140,6 +144,17 @@ export default function Users() {
   }
   const td: React.CSSProperties = { padding: '12px 14px', fontSize: 14, verticalAlign: 'middle' }
 
+  const filtered = users.filter(u => {
+    if (roleFilter && u.role !== roleFilter) return false
+    if (statusFilter === 'ACTIVE' && !u.active) return false
+    if (statusFilter === 'INACTIVE' && u.active) return false
+    if (search) {
+      const q = search.toLowerCase()
+      if (!(u.fullName.toLowerCase().includes(q) || u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))) return false
+    }
+    return true
+  })
+
   return (
     <div style={{ padding: 24 }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -182,6 +197,14 @@ export default function Users() {
         <div style={{ textAlign: 'center', padding: 48, color: '#64748b' }}>Loading...</div>
       ) : (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
+          <FilterBar
+            filters={[
+              { label: 'Role', options: ROLES.map(r => ({ value: r, label: ROLE_LABELS[r] ?? r })), value: roleFilter, onChange: setRoleFilter, allLabel: 'All roles' },
+              { label: 'Status', options: [{ value: 'ACTIVE', label: 'Active' }, { value: 'INACTIVE', label: 'Inactive' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
+            ]}
+            search={{ placeholder: 'Name, username, email…', value: search, onChange: setSearch }}
+            count={filtered.length} countLabel="users"
+          />
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f8fafc' }}>
@@ -194,7 +217,13 @@ export default function Users() {
               </tr>
             </thead>
             <tbody>
-              {users.map(u => (
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ ...td, textAlign: 'center', color: '#64748b', padding: 32 }}>
+                    No users match the selected filters
+                  </td>
+                </tr>
+              ) : filtered.map(u => (
                 <tr key={u.id} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={td}>
                     {/* Hidden file input per user */}
