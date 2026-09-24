@@ -1,0 +1,6 @@
+Apple Uniformm — Purchase Manager
+Copyright © Apple Uniformm
+
+This software is provided for use by Apple Uniformm staff for purchase order
+and stock management. Redistribution outside the organisation is not permitted
+without written approval.
