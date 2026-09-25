@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ironingDcApi, type IroningDc } from '../api/ironingDc'
+import { printIroningDc } from '../utils/printDc'
 import { useApiData } from '../hooks/useApiData'
 import { BackButton, InfoRow, DocStat, StatsStrip, StatDivider, statusBadge } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
@@ -14,7 +15,25 @@ export default function IroningDcDetail() {
     [id]
   )
   const [busy, setBusy] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editDate, setEditDate] = useState('')
+  const [editSentTo, setEditSentTo] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editQtys, setEditQtys] = useState<Record<string, number>>({})
   const { dialog, showError, showConfirm } = useAlertDialog()
+
+  useEffect(() => { if (doc) { setEditDate(doc.deliveryDate); setEditSentTo(doc.sentToPersonName ?? ''); setEditQtys(Object.fromEntries(doc.items.map(i => [i.id, i.quantity]))) } }, [doc])
+  const cancelEdit = () => { setEditing(false); if (doc) { setEditDate(doc.deliveryDate); setEditSentTo(doc.sentToPersonName ?? ''); setEditQtys(Object.fromEntries(doc.items.map(i => [i.id, i.quantity]))) } }
+
+  const doSaveEdit = async () => {
+    if (!doc) return
+    setBusy(true)
+    try {
+      await ironingDcApi.update(doc.id, { deliveryDate: editDate, sentToPersonName: editSentTo || undefined, notes: editNotes || undefined, items: doc.items.map(i => ({ id: i.id, quantity: editQtys[i.id] ?? i.quantity })) })
+      setEditing(false); reload()
+    } catch (e: any) { isForbiddenError(e) ? showError('Access Denied', PERMISSION_DENIED_MSG) : showError('Save Failed', e.message) }
+    finally { setBusy(false) }
+  }
 
   const doConfirmDc = async () => {
     if (!doc) return
@@ -40,8 +59,10 @@ export default function IroningDcDetail() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-secondary" onClick={() => { document.title = doc.dcNumber; window.print() }}>Print DC</button>
-          {doc.status === 'DRAFT' && (
+          <button className="btn btn-secondary" onClick={() => printIroningDc(doc)}>Print DC</button>
+          {doc.status === 'DRAFT' && !editing && <button className="btn btn-secondary" onClick={() => setEditing(true)}>Edit</button>}
+          {editing && (<><button className="btn btn-secondary" onClick={cancelEdit}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={doSaveEdit}>{busy ? 'Saving…' : 'Save Changes'}</button></>)}
+          {doc.status === 'DRAFT' && !editing && (
             <button className="btn btn-primary" disabled={busy}
               onClick={() => showConfirm('Confirm Ironing DC', 'Garments will be marked as ironed. This cannot be undone.', doConfirmDc)}>
               {busy ? 'Confirming…' : 'Confirm DC'}
@@ -56,14 +77,13 @@ export default function IroningDcDetail() {
         </div>
         <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 14, columnGap: 40 }}>
           <InfoRow label="DC Number"      value={doc.dcNumber} />
-          <InfoRow label="Sales Order"   value={doc.schoolOrderNumber ?? '—'} />
+          <InfoRow label="Sales Order"    value={doc.schoolOrderNumber ?? '—'} />
           <InfoRow label="School"         value={doc.schoolName ?? '—'} />
           <InfoRow label="Stitching Unit" value={doc.stitchingUnitName} />
-          <InfoRow label="Ironing Date"   value={doc.deliveryDate} />
+          {editing ? <div><div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Ironing Date</div><input type="date" className="form-control" value={editDate} onChange={e => setEditDate(e.target.value)} /></div> : <InfoRow label="Ironing Date" value={doc.deliveryDate} />}
           <InfoRow label="Status"         value={doc.status} />
-          {doc.sentToPersonName && (
-            <InfoRow label="Received By" value={doc.sentToPersonName} />
-          )}
+          {editing ? <div><div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Received By</div><input type="text" className="form-control" placeholder="Person name" value={editSentTo} onChange={e => setEditSentTo(e.target.value)} /></div> : <InfoRow label="Received By" value={doc.sentToPersonName || '—'} />}
+          {editing && <div><div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Notes</div><input type="text" className="form-control" placeholder="Optional notes" value={editNotes} onChange={e => setEditNotes(e.target.value)} /></div>}
         </div>
         <StatsStrip>
           <DocStat label="Lines"        value={doc.items.length.toString()} />
@@ -91,7 +111,9 @@ export default function IroningDcDetail() {
                 <td style={{ fontWeight: 600 }}>{it.styleName}</td>
                 <td>{it.gender}</td>
                 <td>{it.standard}</td>
-                <td style={{ textAlign: 'right', fontWeight: 800 }}>{it.quantity.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', fontWeight: 800 }}>
+                  {editing ? <input type="number" min="0" value={editQtys[it.id] ?? it.quantity} onChange={e => setEditQtys(q => ({ ...q, [it.id]: Number(e.target.value) }))} style={{ width: 80, textAlign: 'right', padding: '3px 6px', border: '1px solid var(--border)', borderRadius: 4 }} /> : it.quantity.toLocaleString()}
+                </td>
               </tr>
             ))}
           </tbody>

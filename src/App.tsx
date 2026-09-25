@@ -38,7 +38,6 @@ import SchoolOrders from './pages/SchoolOrders'
 import SchoolOrderDetail from './pages/SchoolOrderDetail'
 import StageGrnPage from './pages/StageGrn'
 import StageGrnDetail from './pages/StageGrnDetail'
-import Settings from './pages/Settings'
 import Users from './pages/Users'
 
 export default function App() {
@@ -92,7 +91,6 @@ export default function App() {
               <Route path="school-orders/:id" element={<SchoolOrderDetail />} />
               <Route path="stage-grn" element={<StageGrnPage />} />
               <Route path="stage-grn/:id" element={<StageGrnDetail />} />
-              <Route path="settings" element={<Settings />} />
               <Route path="users" element={<Users />} />
             </Route>
           </Route>

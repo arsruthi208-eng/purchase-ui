@@ -10,7 +10,7 @@ import { fabricsApi, type Fabric } from '../api/fabrics'
 import { coloursApi, type Colour } from '../api/colours'
 import { stockApi } from '../api/stock'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, AlertDialog, type StockShortfall, statusBadge, today, LoadError, FilterBar } from '../components/ui'
+import { Modal, FormError, FormActions, AlertDialog, type StockShortfall, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -38,20 +38,60 @@ function RollPicker({
   rolls,
   selectedIds,
   onToggle,
+  requiredMeters,
 }: {
   rolls: FabricRoll[]
   selectedIds: string[]
   onToggle: (id: string) => void
+  requiredMeters?: number
 }) {
+  const availableRolls = rolls.filter(r => r.status === 'AVAILABLE')
+  const reservedRolls  = rolls.filter(r => r.status === 'IN_USE')
+
   if (rolls.length === 0) return (
     <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '4px 0' }}>
-      No available rolls for this fabric.
+      No rolls for this fabric yet.
     </div>
   )
-  const selectedMeters = rolls.filter(r => selectedIds.includes(r.id)).reduce((s, r) => s + r.quantityMeters, 0)
+  const selectedMeters = availableRolls.filter(r => selectedIds.includes(r.id)).reduce((s, r) => s + r.quantityMeters, 0)
+  const reservedMeters = reservedRolls.reduce((s, r) => s + r.quantityMeters, 0)
+  const shortage = requiredMeters != null && requiredMeters > 0 ? requiredMeters - selectedMeters : 0
+
   return (
     <div>
-      {/* Summary bar */}
+      {/* Required vs selected summary bar */}
+      {requiredMeters != null && requiredMeters > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 6, padding: '5px 10px',
+          background: selectedMeters >= requiredMeters ? '#dcfce7' : '#fef9c3',
+          borderRadius: 6, border: `1px solid ${selectedMeters >= requiredMeters ? '#86efac' : '#fde047'}`,
+        }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#92400e' }}>
+            Required: <strong style={{ fontSize: 13, color: '#78350f' }}>{requiredMeters.toFixed(2)} m</strong>
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: selectedMeters >= requiredMeters ? '#15803d' : '#b45309' }}>
+            Selected: {selectedMeters.toFixed(2)} m
+            {shortage > 0 && <span style={{ color: '#dc2626', marginLeft: 6 }}>({shortage.toFixed(2)} m short)</span>}
+            {shortage <= 0 && selectedMeters > 0 && <span style={{ color: '#15803d', marginLeft: 6 }}>✓</span>}
+          </span>
+        </div>
+      )}
+
+      {/* Reserved rolls notice — only shown if some rolls are IN_USE */}
+      {reservedRolls.length > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          marginBottom: 6, padding: '5px 10px',
+          background: '#fef3c7', borderRadius: 6, border: '1px solid #fde68a',
+          fontSize: 11, color: '#92400e',
+        }}>
+          <span style={{ fontWeight: 700 }}>⚠ {reservedRolls.length} roll{reservedRolls.length !== 1 ? 's' : ''} ({reservedMeters.toFixed(2)} m) reserved in a Draft DC</span>
+          <span style={{ color: '#b45309' }}>— shown below in grey, not selectable</span>
+        </div>
+      )}
+
+      {/* Roll count bar */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: 8, padding: '5px 10px',
@@ -59,7 +99,7 @@ function RollPicker({
         borderRadius: 6, border: '1px solid var(--border)',
       }}>
         <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-          Tap a roll to select / deselect &nbsp;·&nbsp; {rolls.length} available
+          Tap a roll to select / deselect &nbsp;·&nbsp; {availableRolls.length} available
         </span>
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy)' }}>
           {selectedIds.length} selected &nbsp;=&nbsp; {selectedMeters.toFixed(2)} m
@@ -67,12 +107,9 @@ function RollPicker({
       </div>
 
       {/* Roll grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))',
-        gap: 6,
-      }}>
-        {rolls.map(r => {
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: 6 }}>
+        {/* AVAILABLE rolls — selectable */}
+        {availableRolls.map(r => {
           const selected = selectedIds.includes(r.id)
           return (
             <button
@@ -98,6 +135,31 @@ function RollPicker({
             </button>
           )
         })}
+
+        {/* IN_USE rolls — greyed out, not selectable, labelled "Reserved" */}
+        {reservedRolls.map(r => (
+          <div
+            key={r.id}
+            title="Reserved in a Draft Cutting DC — confirm or edit that DC to free this roll"
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+              padding: '7px 10px', borderRadius: 7,
+              background: '#f3f4f6', color: '#9ca3af',
+              border: '1.5px dashed #d1d5db',
+              textAlign: 'left', cursor: 'not-allowed',
+            }}
+          >
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.03em', color: '#d97706' }}>
+              RESERVED
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.03em', marginTop: 1 }}>
+              ROLL #{r.rollNumber}
+            </span>
+            <span style={{ fontSize: 13, marginTop: 3 }}>
+              {r.quantityMeters.toFixed(2)} m
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -166,7 +228,8 @@ export default function Cutting() {
       return
     }
     try {
-      const rolls = await fabricRollsApi.available(fabricId)
+      // Fetch ALL non-consumed rolls (AVAILABLE + IN_USE) so reserved rolls are visible
+      const rolls = await fabricRollsApi.allActive(fabricId)
       setLines(prev => prev.map((l, i) => {
         if (i !== idx) return l
         // If rolls exist → let user pick (consumed = 0 until rolls are selected)
@@ -284,7 +347,12 @@ export default function Cutting() {
         return `${name} (will have ${remaining.toLocaleString()} m, min is ${fab!.minStockMeters!.toLocaleString()} m)`
       })
       if (belowMin.length > 0) {
-        showAlertWarning('Stock Below Minimum', `After this cutting, the following fabrics will be below minimum stock:\n\n${belowMin.join('\n')}`)
+        showAlertWarning(
+          'Stock Below Minimum',
+          `After this cutting, the following fabrics will drop below minimum stock:\n\n${belowMin.join('\n')}\n\nDo you want to proceed?`,
+          doSave
+        )
+        return   // wait for user's choice — doSave runs only if they click "Proceed anyway"
       }
     } catch { /* allow save if stock check fails */ }
 
@@ -327,6 +395,19 @@ export default function Cutting() {
     )
   }
 
+  const deleteOrder = (o: CuttingOrder, e: React.MouseEvent) => {
+    e.stopPropagation()
+    showConfirm(
+      'Delete Cutting Order',
+      `Permanently delete ${o.cuttingNumber}? Assigned rolls will be released back to AVAILABLE.`,
+      async () => {
+        try { await cuttingApi.delete(o.id); load() }
+        catch (err: any) { isForbiddenError(err) ? showAlertError('Access Denied', PERMISSION_DENIED_MSG) : showAlertError('Delete Failed', err.response?.data?.message ?? err.message) }
+      }
+    )
+  }
+
+  const [sortDesc, setSortDesc] = useState(true)
   const filtered = orders.filter(r => {
     if (statusFilter && r.status !== statusFilter) return false
     if (schoolFilter && r.schoolName !== schoolFilter) return false
@@ -336,6 +417,9 @@ export default function Cutting() {
     }
     return true
   })
+  const sorted = [...filtered].sort((a, b) =>
+    sortDesc ? b.cuttingDate.localeCompare(a.cuttingDate) : a.cuttingDate.localeCompare(b.cuttingDate)
+  )
 
   return (
     <div className="page">
@@ -435,50 +519,69 @@ export default function Cutting() {
                 </div>
 
                 {/* Row 2: Roll picker or fabric consumed display */}
-                {line.fabricId ? (
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                      Select rolls to assign →
-                    </div>
-                    <RollPicker
-                      rolls={line.availableRolls}
-                      selectedIds={line.selectedRollIds}
-                      onToggle={rollId => toggleRoll(idx, rollId)}
-                    />
-                    <div style={{ marginTop: 6, fontSize: 12 }}>
-                      <span style={{ color: 'var(--text-muted)' }}>Fabric consumed: </span>
-                      <strong style={{ color: line.fabricConsumed > 0 ? 'var(--navy)' : '#dc2626' }}>
-                        {line.fabricConsumed.toFixed(2)} m
-                      </strong>
-                      {line.availableRolls.length === 0 && styleMap[line.styleId]?.fabricConsumptionRate && line.selectedRollIds.length === 0 && (
-                        <span style={{ color: '#92400e', fontSize: 11, marginLeft: 8, background: '#fef3c7', padding: '1px 6px', borderRadius: 4 }}>
-                          auto from rate: {styleMap[line.styleId].fabricConsumptionRate} m/pc × {line.quantity}
-                        </span>
+                {line.fabricId ? (() => {
+                  const rate = styleMap[line.styleId]?.fabricConsumptionRate
+                  const requiredMeters = rate && line.quantity > 0
+                    ? Math.round(line.quantity * rate * 100) / 100
+                    : undefined
+                  return (
+                    <div>
+                      {/* Always show required meters when rate is known */}
+                      {requiredMeters != null && line.availableRolls.length > 0 && (
+                        <div style={{
+                          fontSize: 12, marginBottom: 6, padding: '4px 10px',
+                          background: '#f0fdf4', borderRadius: 6, border: '1px solid #bbf7d0',
+                          display: 'flex', alignItems: 'center', gap: 6,
+                        }}>
+                          <span style={{ color: '#15803d', fontWeight: 700 }}>📐 Required fabric:</span>
+                          <strong style={{ fontSize: 14, color: '#166534' }}>{requiredMeters.toFixed(2)} m</strong>
+                          <span style={{ color: '#6b7280', fontSize: 11 }}>({rate} m/pc × {line.quantity} pcs)</span>
+                        </div>
                       )}
-                      {line.selectedRollIds.length > 0 && (
-                        <span style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 8 }}>
-                          from {line.selectedRollIds.length} roll{line.selectedRollIds.length !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                    </div>
-                    {line.fabricId && line.availableRolls.length === 0 && !styleMap[line.styleId]?.fabricConsumptionRate && (
-                      <div style={{ marginTop: 6 }}>
-                        <label style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>
-                          No rolls & no rate — enter meters manually:
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0.01"
-                          placeholder="Fabric consumed (m)"
-                          value={line.fabricConsumed || ''}
-                          onChange={e => updateLine(idx, { fabricConsumed: Number(e.target.value) })}
-                          style={{ marginTop: 4, width: 160, fontSize: 13 }}
-                        />
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
+                        Select rolls to assign →
                       </div>
-                    )}
-                  </div>
-                ) : (
+                      <RollPicker
+                        rolls={line.availableRolls}
+                        selectedIds={line.selectedRollIds}
+                        onToggle={rollId => toggleRoll(idx, rollId)}
+                        requiredMeters={requiredMeters}
+                      />
+                      <div style={{ marginTop: 6, fontSize: 12 }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Fabric consumed: </span>
+                        <strong style={{ color: line.fabricConsumed > 0 ? 'var(--navy)' : '#dc2626' }}>
+                          {line.fabricConsumed.toFixed(2)} m
+                        </strong>
+                        {line.availableRolls.length === 0 && rate && line.selectedRollIds.length === 0 && (
+                          <span style={{ color: '#92400e', fontSize: 11, marginLeft: 8, background: '#fef3c7', padding: '1px 6px', borderRadius: 4 }}>
+                            auto from rate: {rate} m/pc × {line.quantity}
+                          </span>
+                        )}
+                        {line.selectedRollIds.length > 0 && (
+                          <span style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 8 }}>
+                            from {line.selectedRollIds.length} roll{line.selectedRollIds.length !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                      {line.fabricId && line.availableRolls.length === 0 && !rate && (
+                        <div style={{ marginTop: 6 }}>
+                          <label style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>
+                            No rolls & no rate — enter meters manually:
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            placeholder="Fabric consumed (m)"
+                            value={line.fabricConsumed || ''}
+                            onChange={e => updateLine(idx, { fabricConsumed: Number(e.target.value) })}
+                            style={{ marginTop: 4, width: 160, fontSize: 13 }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })() : (
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Select a fabric to see available rolls.</div>
                 )}
               </div>
@@ -511,7 +614,7 @@ export default function Cutting() {
               <tr>
                 <th>Cutting #</th>
                 <th>School</th>
-                <th>Date</th>
+                <SortableTh label="Date" desc={sortDesc} onToggle={() => setSortDesc(p => !p)} />
                 <th>Received By</th>
                 <th style={{ textAlign: 'right' }}>Items</th>
                 <th>Status</th>
@@ -521,7 +624,7 @@ export default function Cutting() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={6}><div className="empty-state">No cutting orders yet</div></td></tr>
-              ) : filtered.map(o => (
+              ) : sorted.map(o => (
                 <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/cutting/${o.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{o.cuttingNumber}</td>
                   <td>{o.schoolName}</td>
@@ -529,9 +632,16 @@ export default function Cutting() {
                   <td style={{ color: o.sentToPersonName ? undefined : 'var(--text-muted)', fontSize: 13 }}>{o.sentToPersonName ?? '—'}</td>
                   <td style={{ textAlign: 'right' }}>{o.items?.length ?? 0}</td>
                   <td><span className={`badge ${statusBadge(o.status)}`}>{o.status}</span></td>
-                  <td onClick={e => e.stopPropagation()}>
+                  <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
                     {o.status === 'DRAFT' && (
                       <button className="btn btn-sm btn-secondary" onClick={() => confirmOrder(o.id)}>Confirm</button>
+                    )}
+                    {o.status === 'DRAFT' ? (
+                      <button className="btn-icon" title="Delete draft" style={{ color: '#dc2626', marginLeft: 6 }} onClick={e => deleteOrder(o, e)}>
+                        <Trash2 size={14} />
+                      </button>
+                    ) : (
+                      <Trash2 size={14} style={{ color: '#d1d5db', marginLeft: 6, verticalAlign: 'middle' }} title="Cannot delete — already confirmed" />
                     )}
                   </td>
                 </tr>

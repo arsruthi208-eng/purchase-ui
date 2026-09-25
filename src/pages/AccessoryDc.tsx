@@ -7,7 +7,7 @@ import { accessoriesApi, type Accessory } from '../api/accessories'
 import { schoolOrdersApi, type SchoolOrderSummary } from '../api/schoolOrders'
 import { stockApi } from '../api/stock'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, AlertDialog, type StockShortfall, statusBadge, today, LoadError, FilterBar } from '../components/ui'
+import { Modal, FormError, FormActions, AlertDialog, type StockShortfall, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 
 type Line = CreateAccessoryDcRequest['items'][0]
@@ -138,6 +138,19 @@ export default function AccessoryDcPage() {
     )
   }
 
+  const deleteDc = (d: AccessoryDc, e: React.MouseEvent) => {
+    e.stopPropagation()
+    showConfirm(
+      'Delete Accessory DC',
+      `Permanently delete ${d.dcNumber}? This cannot be undone.`,
+      async () => {
+        try { await accessoryDcApi.delete(d.id); load() }
+        catch (err: any) { showAlertError('Delete Failed', err.response?.data?.message ?? err.message) }
+      }
+    )
+  }
+
+  const [sortDesc, setSortDesc] = useState(true)
   const filtered = items.filter(r => {
     if (statusFilter && r.status !== statusFilter) return false
     if (unitFilter && r.stitchingUnitName !== unitFilter) return false
@@ -147,6 +160,9 @@ export default function AccessoryDcPage() {
     }
     return true
   })
+  const sorted = [...filtered].sort((a, b) =>
+    sortDesc ? b.deliveryDate.localeCompare(a.deliveryDate) : a.deliveryDate.localeCompare(b.deliveryDate)
+  )
 
   return (
     <div className="page">
@@ -283,7 +299,7 @@ export default function AccessoryDcPage() {
                 <th>DC Number</th>
                 <th>Stitching Unit</th>
                 <th>Sales Order</th>
-                <th>Delivery Date</th>
+                <SortableTh label="Delivery Date" desc={sortDesc} onToggle={() => setSortDesc(p => !p)} />
                 <th>Received By</th>
                 <th style={{ textAlign: 'right' }}>Items</th>
                 <th>Status</th>
@@ -293,7 +309,7 @@ export default function AccessoryDcPage() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={8}><div className="empty-state">No accessory DCs yet</div></td></tr>
-              ) : filtered.map(d => (
+              ) : sorted.map(d => (
                 <tr key={d.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/accessory-dc/${d.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{d.dcNumber}</td>
                   <td>{d.stitchingUnitName}</td>
@@ -302,9 +318,16 @@ export default function AccessoryDcPage() {
                   <td style={{ color: d.sentToPersonName ? undefined : 'var(--text-muted)', fontSize: 13 }}>{d.sentToPersonName ?? '—'}</td>
                   <td style={{ textAlign: 'right' }}>{d.items?.length ?? 0}</td>
                   <td><span className={`badge ${statusBadge(d.status)}`}>{d.status}</span></td>
-                  <td onClick={e => e.stopPropagation()}>
+                  <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
                     {d.status === 'DRAFT' && (
                       <button className="btn btn-sm btn-secondary" onClick={() => confirmDc(d.id)}>Confirm</button>
+                    )}
+                    {d.status === 'DRAFT' ? (
+                      <button className="btn-icon" title="Delete draft" style={{ color: '#dc2626', marginLeft: 6 }} onClick={e => deleteDc(d, e)}>
+                        <Trash2 size={14} />
+                      </button>
+                    ) : (
+                      <Trash2 size={14} style={{ color: '#d1d5db', marginLeft: 6, verticalAlign: 'middle' }} title="Cannot delete — already confirmed" />
                     )}
                   </td>
                 </tr>

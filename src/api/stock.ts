@@ -60,4 +60,5 @@ export const stockApi = {
     api.get<StockBalanceSummary[]>('/api/v1/stock/balances', { params: { itemType } }).then(r => r.data),
   balance: (itemType: string, referenceId: string) =>
     api.get<StockBalance>('/api/v1/stock/balance', { params: { itemType, referenceId } }).then(r => r.data),
+  deleteEntry: (id: string) => api.delete(`/api/v1/stock/entries/${id}`),
 }

@@ -19,6 +19,10 @@ export const fabricRollsApi = {
   available: (fabricId: string): Promise<FabricRoll[]> =>
     api.get<FabricRoll[]>('/api/v1/fabric-rolls/available', { params: { fabricId } }).then(r => r.data),
 
+  /** All non-consumed rolls (AVAILABLE + IN_USE) — used in picker to show reserved rolls too */
+  allActive: (fabricId: string): Promise<FabricRoll[]> =>
+    api.get<FabricRoll[]>('/api/v1/fabric-rolls/all', { params: { fabricId } }).then(r => r.data),
+
   /** Next roll number for a fabric (preview only – actual assignment happens on save) */
   nextRollNumber: (fabricId: string): Promise<number> =>
     api.get<{ nextRollNumber: number }>('/api/v1/fabric-rolls/next-roll-number', { params: { fabricId } })

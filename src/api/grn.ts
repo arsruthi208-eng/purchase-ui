@@ -64,4 +64,5 @@ export const grnApi = {
   getById: (id: string) => api.get<GrnDetail>(`/api/v1/grn/${id}`).then(r => r.data),
   create: (data: CreateGrnRequest) => api.post<GrnDetail>('/api/v1/grn', data).then(r => r.data),
   confirm: (id: string) => api.post<GrnDetail>(`/api/v1/grn/${id}/confirm`).then(r => r.data),
+  delete: (id: string) => api.delete(`/api/v1/grn/${id}`),
 }

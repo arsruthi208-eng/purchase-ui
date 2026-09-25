@@ -476,7 +476,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
 
   <script>
     window.onload = function () {
-      document.title = '${po.poNumber}';
+      document.title = '${po.poNumber} PO';
       setTimeout(function () { window.print(); }, 300);
     };
     window.onafterprint = function () { window.close(); };

@@ -4,7 +4,7 @@ import { authApi, compressImage } from '../api/auth'
 import {
   LayoutDashboard, School, Users, Palette,
   Layers, Package, ShoppingCart, ClipboardList, Scissors,
-  SendHorizonal, Factory, Archive, PackageCheck, MapPin, SchoolOrderIcon, Printer, Settings, UserRound
+  SendHorizonal, Factory, Archive, PackageCheck, MapPin, SchoolOrderIcon, Printer, UserRound
 } from '../icons'
 import logo from '../assets/apple-uniformm-logo.png'
 import tabLogo from '../assets/apple-uniformm-logo-light.png'
@@ -69,7 +69,6 @@ const ALL_NAV: NavItem[] = [
   { to: '/stitching-units', icon: Factory,  label: 'Stitching Units', color: '#64748b' },
 
   { section: 'System' },
-  { to: '/settings', icon: Settings,  label: 'Settings',      color: '#64748b', roles: ['ADMIN'] },
   { to: '/users',    icon: UserRound, label: 'User Management', color: '#6366f1', roles: ['ADMIN'] },
 ]
 

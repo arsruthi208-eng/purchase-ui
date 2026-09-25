@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus } from '../icons'
+import { Plus, Trash2 } from '../icons'
 import { packingApi, type PackingEntry, type CreatePackingRequest } from '../api/packing'
 import { schoolsApi, type School } from '../api/schools'
 import { schoolOrdersApi, type SchoolOrderSummary, type SchoolOrderDetail } from '../api/schoolOrders'
 import { stylesApi, type Style } from '../api/styles'
 import { accessoriesApi, type Accessory } from '../api/accessories'
-import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -118,6 +118,19 @@ export default function Packing() {
     )
   }
 
+  const deleteEntry = (p: PackingEntry, e: React.MouseEvent) => {
+    e.stopPropagation()
+    showConfirm(
+      'Delete Packing Entry',
+      `Permanently delete ${p.packingNumber}? This cannot be undone.`,
+      async () => {
+        try { await packingApi.delete(p.id); load() }
+        catch (err: any) { isForbiddenError(err) ? showError('Access Denied', PERMISSION_DENIED_MSG) : showError('Delete Failed', err.response?.data?.message ?? err.message) }
+      }
+    )
+  }
+
+  const [sortDesc, setSortDesc] = useState(true)
   const filtered = items.filter(r => {
     if (statusFilter && r.status !== statusFilter) return false
     if (schoolFilter && r.schoolName !== schoolFilter) return false
@@ -127,6 +140,9 @@ export default function Packing() {
     }
     return true
   })
+  const sorted = [...filtered].sort((a, b) =>
+    sortDesc ? b.packingDate.localeCompare(a.packingDate) : a.packingDate.localeCompare(b.packingDate)
+  )
 
   return (
     <div className="page">
@@ -220,7 +236,7 @@ export default function Packing() {
               <tr>
                 <th>Packing #</th>
                 <th>School</th>
-                <th>Date</th>
+                <SortableTh label="Date" desc={sortDesc} onToggle={() => setSortDesc(p => !p)} />
                 <th>Items</th>
                 <th>Status</th>
                 <th style={{ width: 120 }}></th>
@@ -229,16 +245,23 @@ export default function Packing() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={6}><div className="empty-state">No packing entries yet</div></td></tr>
-              ) : filtered.map(p => (
+              ) : sorted.map(p => (
                 <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/packing/${p.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{p.packingNumber}</td>
                   <td>{p.schoolName}</td>
                   <td>{p.packingDate}</td>
                   <td>{p.items?.length ?? 0}</td>
                   <td><span className={`badge ${statusBadge(p.status)}`}>{p.status}</span></td>
-                  <td onClick={e => e.stopPropagation()}>
+                  <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
                     {p.status === 'DRAFT' && (
                       <button className="btn btn-sm btn-secondary" onClick={() => confirmEntry(p.id)}>Confirm</button>
+                    )}
+                    {p.status === 'DRAFT' ? (
+                      <button className="btn-icon" title="Delete draft" style={{ color: '#dc2626', marginLeft: 6 }} onClick={e => deleteEntry(p, e)}>
+                        <Trash2 size={14} />
+                      </button>
+                    ) : (
+                      <Trash2 size={14} style={{ color: '#d1d5db', marginLeft: 6, verticalAlign: 'middle' }} title="Cannot delete — already confirmed" />
                     )}
                   </td>
                 </tr>

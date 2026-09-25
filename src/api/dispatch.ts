@@ -30,4 +30,5 @@ export const dispatchApi = {
   getById: (id: string) => api.get<DispatchEntry>(`/api/v1/dispatch/${id}`).then(r => r.data),
   create: (data: CreateDispatchRequest) => api.post<DispatchEntry>('/api/v1/dispatch', data).then(r => r.data),
   dispatch: (id: string) => api.post<DispatchEntry>(`/api/v1/dispatch/${id}/dispatch`).then(r => r.data),
+  delete: (id: string) => api.delete(`/api/v1/dispatch/${id}`),
 }

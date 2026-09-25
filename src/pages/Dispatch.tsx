@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus } from '../icons'
+import { Plus, Trash2 } from '../icons'
 import { dispatchApi, type DispatchEntry, type CreateDispatchRequest } from '../api/dispatch'
 import { schoolsApi, type School } from '../api/schools'
 import { schoolOrdersApi, type SchoolOrderSummary } from '../api/schoolOrders'
 import { stylesApi, type Style } from '../api/styles'
-import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -88,6 +88,18 @@ export default function Dispatch() {
     } catch (e: any) { setError(e.message) } finally { setSaving(false) }
   }
 
+  const deleteDispatch = (d: DispatchEntry, e: React.MouseEvent) => {
+    e.stopPropagation()
+    showConfirm(
+      'Delete Dispatch Note',
+      `Permanently delete ${d.dispatchNumber}? This cannot be undone.`,
+      async () => {
+        try { await dispatchApi.delete(d.id); load() }
+        catch (err: any) { isForbiddenError(err) ? showError('Access Denied', PERMISSION_DENIED_MSG) : showError('Delete Failed', err.response?.data?.message ?? err.message) }
+      }
+    )
+  }
+
   const doDispatch = (id: string) => {
     showConfirm(
       'Mark as Dispatched',
@@ -96,6 +108,7 @@ export default function Dispatch() {
     )
   }
 
+  const [sortDesc, setSortDesc] = useState(true)
   const filtered = items.filter(r => {
     if (statusFilter && r.status !== statusFilter) return false
     if (schoolFilter && r.schoolName !== schoolFilter) return false
@@ -105,6 +118,9 @@ export default function Dispatch() {
     }
     return true
   })
+  const sorted = [...filtered].sort((a, b) =>
+    sortDesc ? b.dispatchDate.localeCompare(a.dispatchDate) : a.dispatchDate.localeCompare(b.dispatchDate)
+  )
 
   return (
     <div className="page">
@@ -196,7 +212,7 @@ export default function Dispatch() {
               <tr>
                 <th>Dispatch #</th>
                 <th>School</th>
-                <th>Date</th>
+                <SortableTh label="Date" desc={sortDesc} onToggle={() => setSortDesc(p => !p)} />
                 <th>Vehicle</th>
                 <th>Status</th>
                 <th style={{ width: 120 }}></th>
@@ -205,16 +221,23 @@ export default function Dispatch() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={6}><div className="empty-state">No dispatch entries yet</div></td></tr>
-              ) : filtered.map(d => (
+              ) : sorted.map(d => (
                 <tr key={d.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/dispatch/${d.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{d.dispatchNumber}</td>
                   <td>{d.schoolName}</td>
                   <td>{d.dispatchDate}</td>
                   <td>{d.vehicleNumber ?? '—'}</td>
                   <td><span className={`badge ${statusBadge(d.status)}`}>{d.status}</span></td>
-                  <td onClick={e => e.stopPropagation()}>
+                  <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
                     {d.status !== 'DISPATCHED' && (
                       <button className="btn btn-sm btn-secondary" onClick={() => doDispatch(d.id)}>Dispatch</button>
+                    )}
+                    {d.status === 'DRAFT' ? (
+                      <button className="btn-icon" title="Delete draft" style={{ color: '#dc2626', marginLeft: 6 }} onClick={e => deleteDispatch(d, e)}>
+                        <Trash2 size={14} />
+                      </button>
+                    ) : (
+                      <Trash2 size={14} style={{ color: '#d1d5db', marginLeft: 6, verticalAlign: 'middle' }} title="Cannot delete — already dispatched" />
                     )}
                   </td>
                 </tr>

@@ -71,4 +71,5 @@ export const stageGrnApi = {
     api.get<DcItemSummary[]>(`/api/v1/stage-grn/sources/${sourceType}/${dcId}/items`).then(r => r.data),
   create: (data: CreateStageGrnRequest) => api.post<StageGrn>('/api/v1/stage-grn', data).then(r => r.data),
   confirm: (id: string) => api.post<StageGrn>(`/api/v1/stage-grn/${id}/confirm`).then(r => r.data),
+  delete: (id: string) => api.delete(`/api/v1/stage-grn/${id}`),
 }

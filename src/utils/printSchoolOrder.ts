@@ -187,8 +187,6 @@ function esc(v?: string | number | null): string {
 
 function buildHtml(order: SchoolOrderDetail, logoDataUrl: string): string {
   const kind = order.orderKind || 'SCHOOL_STD'
-  const n = Math.max(order.items.length, 1)
-  const rowH = n <= 2 ? 42 : n <= 6 ? 32 : 26
   const logoHtml = logoDataUrl
     ? `<img src="${logoDataUrl}" alt="Apple Uniformm" class="logo">`
     : `<div class="brand-name">APPLE UNIFORMM</div>`
@@ -208,38 +206,44 @@ function buildHtml(order: SchoolOrderDetail, logoDataUrl: string): string {
   <style>
     @page { size: A4 portrait; margin: 10mm; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 297mm; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 12.5px; color: #111; background: #fff; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #111; background: #fff; }
     .sheet { min-height: 277mm; display: flex; flex-direction: column; }
-    .hdr { text-align: center; padding-bottom: 8px; }
-    .logo { height: 52px; width: auto; }
-    .brand-name { font-size: 26px; font-weight: 800; color: #c4161c; letter-spacing: 0.04em; }
-    .tag { font-size: 11px; font-weight: 700; color: #1b5e20; margin-top: 2px; }
-    .addr { font-size: 12px; margin-top: 2px; }
-    .meta { display: flex; justify-content: space-between; align-items: flex-start; margin: 8px 0 10px; }
-    .to { font-size: 13px; line-height: 1.4; }
+    .hdr { text-align: center; padding-bottom: 6px; border-bottom: 2px solid #1b7a3d; margin-bottom: 8px; }
+    .logo { height: 48px; width: auto; }
+    .brand-name { font-size: 22px; font-weight: 800; color: #c4161c; letter-spacing: 0.04em; }
+    .tag { font-size: 10.5px; font-weight: 700; color: #1b5e20; margin-top: 1px; }
+    .addr { font-size: 11px; margin-top: 1px; color: #333; }
+    .meta { display: flex; justify-content: space-between; align-items: flex-start; margin: 7px 0 8px; }
+    .to { font-size: 12px; line-height: 1.5; }
     .to strong { display: block; margin-bottom: 2px; }
-    .nums { text-align: right; font-weight: 700; font-size: 13px; }
+    .nums { text-align: right; font-weight: 700; font-size: 12px; line-height: 1.6; }
     .subject {
-      background: #ffe566; font-weight: 800; padding: 7px 10px; margin-bottom: 8px;
-      border: 1px solid #e0c200; font-size: 13px;
+      background: #fff8dc; font-weight: 700; padding: 5px 10px; margin-bottom: 7px;
+      border-left: 4px solid #d4a800; font-size: 12px; color: #5a3e00;
     }
-    .intro { margin-bottom: 10px; line-height: 1.45; }
+    .intro { margin-bottom: 8px; line-height: 1.4; font-size: 11.5px; color: #333; }
     .list-bar {
       display: flex; justify-content: space-between; background: #1b7a3d; color: #fff;
-      font-weight: 800; padding: 6px 12px; margin-bottom: 8px; font-size: 12.5px;
+      font-weight: 700; padding: 5px 10px; margin-bottom: 6px; font-size: 12px;
     }
-    table.grid { width: 100%; border-collapse: collapse; flex: 1; }
-    table.grid th, table.grid td { border: 1px solid #222; padding: 5px 6px; }
-    table.grid th { background: #f3f3f3; font-size: 11px; text-align: left; }
-    table.grid td { height: ${rowH}px; }
-    tr.sec td { background: #ffe566; font-weight: 800; text-align: center; letter-spacing: 0.02em; }
-    tr.tot td { background: #ffe566; font-weight: 800; }
-    .notes { margin-top: 14px; }
-    .notes h4 { margin-bottom: 4px; }
-    .notes p { line-height: 1.45; }
-    .sign { margin-top: auto; padding-top: 28px; }
-    .sign-lbl { margin-top: 36px; font-weight: 700; font-size: 12px; }
+    table.grid { width: 100%; border-collapse: collapse; }
+    table.grid th { background: #2d6a4f; color: #fff; font-size: 10.5px; font-weight: 700;
+      text-align: left; padding: 5px 7px; border: 1px solid #1b5235; letter-spacing: 0.03em; }
+    table.grid td { border: 1px solid #ccc; padding: 5px 7px; font-size: 12px; vertical-align: middle; }
+    table.grid tbody tr:nth-child(even):not(.sec):not(.tot) { background: #f9f9f9; }
+    tr.sec td {
+      background: #e8f5e9; color: #1b5e20; font-weight: 700; font-size: 11px;
+      padding: 3px 7px; border-color: #a5d6a7; letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    tr.tot td {
+      background: #f0f0f0; font-weight: 700; font-size: 12px;
+      border-top: 2px solid #333; border-color: #999;
+    }
+    .notes { margin-top: 12px; }
+    .notes h4 { font-size: 11.5px; margin-bottom: 3px; }
+    .notes p { line-height: 1.45; font-size: 11.5px; color: #333; }
+    .sign { margin-top: auto; padding-top: 24px; }
+    .sign-lbl { margin-top: 32px; font-weight: 700; font-size: 12px; }
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
@@ -279,7 +283,7 @@ function buildHtml(order: SchoolOrderDetail, logoDataUrl: string): string {
   </div>
   <script>
     window.onload = function () {
-      document.title = '${order.orderNumber}';
+      document.title = '${order.orderNumber} SO';
       setTimeout(function () { window.print(); }, 300);
     };
     window.onafterprint = function () { window.close(); };

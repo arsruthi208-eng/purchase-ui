@@ -8,7 +8,7 @@ import {
 import { schoolsApi, type School } from '../api/schools'
 import { stylesApi, type Style } from '../api/styles'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -179,6 +179,7 @@ export default function SchoolOrders() {
       ? ['Style *', 'Gender', 'Year *', 'Students', 'Sets', 'Group', '']
       : ['Style *', 'Gender', 'STD *', 'Total students *', 'No. of students *', 'Qty *', '']
 
+  const [sortDesc, setSortDesc] = useState(true)
   const filtered = orders.filter(r => {
     if (statusFilter && r.status !== statusFilter) return false
     if (kindFilter && r.orderKind !== kindFilter) return false
@@ -189,6 +190,9 @@ export default function SchoolOrders() {
     }
     return true
   })
+  const sorted = [...filtered].sort((a, b) =>
+    sortDesc ? b.orderDate.localeCompare(a.orderDate) : a.orderDate.localeCompare(b.orderDate)
+  )
 
   return (
     <div className="page">
@@ -327,7 +331,7 @@ export default function SchoolOrders() {
                 <th>Order #</th>
                 <th>School</th>
                 <th>Type</th>
-                <th>Date</th>
+                <SortableTh label="Date" desc={sortDesc} onToggle={() => setSortDesc(p => !p)} />
                 <th style={{ textAlign: 'right' }}>Lines</th>
                 <th style={{ textAlign: 'right' }}>Total Qty</th>
                 <th>Status</th>
@@ -338,7 +342,7 @@ export default function SchoolOrders() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={9}><div className="empty-state">No school orders yet</div></td></tr>
-              ) : filtered.map(o => (
+              ) : sorted.map(o => (
                 <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/school-orders/${o.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)', fontFamily: 'monospace', fontSize: 13 }}>{o.orderNumber}</td>
                   <td style={{ fontWeight: 500 }}>{o.schoolName}</td>

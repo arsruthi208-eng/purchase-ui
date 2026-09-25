@@ -5,7 +5,7 @@ import { grnApi, type GrnSummary, type CreateGrnRequest, type CreateGrnItemReque
 import { type RollEntry, fabricRollsApi } from '../api/fabricRolls'
 import { purchaseOrdersApi, type PoSummary } from '../api/purchaseOrders'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -138,6 +138,19 @@ export default function Grn() {
     )
   }
 
+  const deleteGrn = (g: GrnSummary, e: React.MouseEvent) => {
+    e.stopPropagation()
+    showConfirm(
+      'Delete GRN',
+      `Permanently delete ${g.grnNumber}? This cannot be undone.`,
+      async () => {
+        try { await grnApi.delete(g.id); load() }
+        catch (err: any) { isForbiddenError(err) ? showError('Access Denied', PERMISSION_DENIED_MSG) : showError('Delete Failed', err.response?.data?.message ?? err.message) }
+      }
+    )
+  }
+
+  const [sortDesc, setSortDesc] = useState(true)
   const filtered = items.filter(r => {
     if (statusFilter && r.status !== statusFilter) return false
     if (kindFilter && r.grnKind !== kindFilter) return false
@@ -147,6 +160,9 @@ export default function Grn() {
     }
     return true
   })
+  const sorted = [...filtered].sort((a, b) =>
+    sortDesc ? b.receivedDate.localeCompare(a.receivedDate) : a.receivedDate.localeCompare(b.receivedDate)
+  )
 
   return (
     <div className="page">
@@ -350,7 +366,7 @@ export default function Grn() {
               <tr>
                 <th>GRN Number</th>
                 <th>PO Number</th>
-                <th>Received Date</th>
+                <SortableTh label="Received Date" desc={sortDesc} onToggle={() => setSortDesc(p => !p)} />
                 <th>Items</th>
                 <th>Status</th>
                 <th style={{ width: 120 }}></th>
@@ -359,16 +375,23 @@ export default function Grn() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={6}><div className="empty-state">No GRNs yet</div></td></tr>
-              ) : filtered.map(g => (
+              ) : sorted.map(g => (
                 <tr key={g.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/grn/${g.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{g.grnNumber}</td>
                   <td>{g.poNumber}</td>
                   <td>{g.receivedDate}</td>
                   <td>{g.itemCount}</td>
                   <td><span className={`badge ${statusBadge(g.status)}`}>{g.status}</span></td>
-                  <td onClick={e => e.stopPropagation()}>
+                  <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
                     {g.status !== 'CONFIRMED' && (
                       <button className="btn btn-sm btn-secondary" onClick={() => confirmGrn(g.id)}>Confirm</button>
+                    )}
+                    {g.status === 'DRAFT' ? (
+                      <button className="btn-icon" title="Delete draft" style={{ color: '#dc2626', marginLeft: 6 }} onClick={e => deleteGrn(g, e)}>
+                        <Trash2 size={14} />
+                      </button>
+                    ) : (
+                      <Trash2 size={14} style={{ color: '#d1d5db', marginLeft: 6, verticalAlign: 'middle' }} title="Cannot delete — already confirmed" />
                     )}
                   </td>
                 </tr>

@@ -8,7 +8,7 @@ import { fabricsApi, type Fabric } from '../api/fabrics'
 import { coloursApi, type Colour } from '../api/colours'
 import { schoolOrdersApi, type SchoolOrderSummary } from '../api/schoolOrders'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -91,7 +91,8 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
 
   const handleFilter = (s: string) => { setFilter(s); load(s) }
 
-  const displayedPos = search
+  const [sortDesc, setSortDesc] = useState(true)
+  const displayedPos = (search
     ? pos.filter(po => {
         const q = search.toLowerCase()
         return (
@@ -102,6 +103,9 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
         )
       })
     : pos
+  ).slice().sort((a, b) =>
+    sortDesc ? b.poDate.localeCompare(a.poDate) : a.poDate.localeCompare(b.poDate)
+  )
 
   const openCreate = () => {
     setEditingId(null)
@@ -552,7 +556,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                 <th>PO Number</th>
                 <th>Sales Order</th>
                 <th>Purchase Party</th>
-                <th>Date</th>
+                <SortableTh label="Date" desc={sortDesc} onToggle={() => setSortDesc(p => !p)} />
                 <th>Expected</th>
                 <th>Items</th>
                 <th>Status</th>

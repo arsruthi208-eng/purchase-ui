@@ -28,10 +28,19 @@ export interface CreateStitchingDcRequest {
   kajaConsumption: { accessoryId: string; quantity: number; unitOfMeasure?: string; notes?: string }[]
 }
 
+export interface UpdateStitchingDcRequest {
+  deliveryDate: string
+  sentToPersonName?: string
+  notes?: string
+  items: { id: string; quantity: number }[]
+}
+
 export const stitchingDcApi = {
   list: (schoolId?: string) =>
     api.get<StitchingDc[]>('/api/v1/stitching-dc', { params: schoolId ? { schoolId } : undefined }).then(r => r.data),
   getById: (id: string) => api.get<StitchingDc>(`/api/v1/stitching-dc/${id}`).then(r => r.data),
   create: (data: CreateStitchingDcRequest) => api.post<StitchingDc>('/api/v1/stitching-dc', data).then(r => r.data),
+  update: (id: string, data: UpdateStitchingDcRequest) => api.patch<StitchingDc>(`/api/v1/stitching-dc/${id}`, data).then(r => r.data),
   confirm: (id: string) => api.post<StitchingDc>(`/api/v1/stitching-dc/${id}/confirm`).then(r => r.data),
+  delete: (id: string) => api.delete(`/api/v1/stitching-dc/${id}`),
 }

@@ -8,6 +8,7 @@
 
 export * from './Modal'
 export * from './AlertDialog'
+export * from './StockAlertBanner'
 export * from './SearchBar'
 export * from './FilterPills'
 export * from './FilterBar'
@@ -15,4 +16,5 @@ export * from './Badges'
 export * from './DocumentSummary'
 export * from './Cards'
 export * from './LoadError'
+export * from './SortableTh'
 export * from './utils'

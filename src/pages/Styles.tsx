@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Plus, Pencil, Trash2 } from '../icons'
 import { stylesApi, type Style, type CreateStyleRequest, type UpdateStyleRequest } from '../api/styles'
 import { schoolsApi, type School } from '../api/schools'
@@ -22,6 +22,7 @@ export default function Styles() {
   const [form, setForm] = useState<CreateStyleRequest>(emptyCreate)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [schoolSearch, setSchoolSearch] = useState('')
   const { dialog, showError, showConfirm } = useAlertDialog()
 
   const load = () => {
@@ -53,6 +54,7 @@ export default function Styles() {
     setEditing(null)
     setForm({ ...emptyCreate, pattern: patternFilter || patterns[0] || '', schoolIds: [] })
     setError('')
+    setSchoolSearch('')
     setShowForm(true)
   }
 
@@ -66,6 +68,7 @@ export default function Styles() {
       schoolIds: s.schoolIds ?? [],
     })
     setError('')
+    setSchoolSearch('')
     setShowForm(true)
   }
 
@@ -80,6 +83,16 @@ export default function Styles() {
       }
     })
   }
+
+  const selectAllSchools = () => setForm(prev => ({ ...prev, schoolIds: schools.map(s => s.id) }))
+  const clearAllSchools  = () => setForm(prev => ({ ...prev, schoolIds: [] }))
+
+  const filteredSchools = useMemo(() =>
+    schoolSearch.trim()
+      ? schools.filter(s => s.schoolName.toLowerCase().includes(schoolSearch.toLowerCase()))
+      : schools,
+    [schools, schoolSearch]
+  )
 
   const save = async () => {
     if (!form.styleCode.trim() || !form.styleName.trim() || !form.pattern.trim()) {
@@ -167,50 +180,117 @@ export default function Styles() {
 
           {/* School association */}
           <div className="form-group">
-            <label>
-              Schools
-              <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: 6 }}>
-                ({(form.schoolIds ?? []).length} selected)
-              </span>
-            </label>
+            {/* Header row: label + counts + bulk actions */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <label style={{ margin: 0 }}>
+                Schools
+                <span style={{
+                  marginLeft: 8, fontSize: 11, fontWeight: 700,
+                  background: (form.schoolIds ?? []).length > 0 ? 'var(--navy)' : '#e5e7eb',
+                  color: (form.schoolIds ?? []).length > 0 ? '#fff' : '#6b7280',
+                  borderRadius: 20, padding: '1px 8px',
+                }}>
+                  {(form.schoolIds ?? []).length} / {schools.length}
+                </span>
+              </label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button type="button" onClick={selectAllSchools}
+                  style={{ fontSize: 11, padding: '2px 10px', border: '1px solid var(--border)', borderRadius: 4, cursor: 'pointer', background: '#f8fafc', color: '#374151' }}>
+                  Select All
+                </button>
+                <button type="button" onClick={clearAllSchools}
+                  style={{ fontSize: 11, padding: '2px 10px', border: '1px solid #fca5a5', borderRadius: 4, cursor: 'pointer', background: '#fff1f2', color: '#dc2626' }}>
+                  Clear All
+                </button>
+              </div>
+            </div>
+
+            {/* Search inside schools */}
+            <input
+              type="text"
+              placeholder="🔍  Search school name…"
+              value={schoolSearch}
+              onChange={e => setSchoolSearch(e.target.value)}
+              style={{ marginBottom: 6, fontSize: 12 }}
+            />
+
+            {/* Schools grid */}
             <div style={{
-              border: '1px solid var(--border)',
-              borderRadius: 6,
-              maxHeight: 200,
-              overflowY: 'auto',
-              padding: '6px 4px',
+              border: '1px solid var(--border)', borderRadius: 6,
+              maxHeight: 240, overflowY: 'auto', background: '#fafafa',
             }}>
               {schools.length === 0 ? (
-                <div style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 13 }}>Loading schools…</div>
+                <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
+                  Loading schools…
+                </div>
+              ) : filteredSchools.length === 0 ? (
+                <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 13, textAlign: 'center' }}>
+                  No schools match "{schoolSearch}"
+                </div>
               ) : (
-                schools.map(sc => {
-                  const checked = (form.schoolIds ?? []).includes(sc.id)
-                  return (
-                    <label
-                      key={sc.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '5px 10px',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                        background: checked ? 'var(--navy-50, #eff6ff)' : 'transparent',
-                        fontSize: 13,
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleSchool(sc.id)}
-                        style={{ margin: 0 }}
-                      />
-                      <span style={{ fontWeight: checked ? 600 : 400 }}>{sc.schoolName}</span>
-                    </label>
-                  )
-                })
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 3, padding: 6,
+                }}>
+                  {filteredSchools.map(sc => {
+                    const checked = (form.schoolIds ?? []).includes(sc.id)
+                    return (
+                      <label
+                        key={sc.id}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8,
+                          padding: '7px 10px', borderRadius: 5, cursor: 'pointer',
+                          background: checked ? '#eff6ff' : '#fff',
+                          border: `1.5px solid ${checked ? '#93c5fd' : '#e5e7eb'}`,
+                          transition: 'background 0.1s, border-color 0.1s',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleSchool(sc.id)}
+                          style={{ margin: 0, flexShrink: 0, accentColor: 'var(--navy)', width: 14, height: 14 }}
+                        />
+                        <span style={{
+                          fontSize: 12,
+                          fontWeight: checked ? 600 : 400,
+                          color: checked ? '#1e40af' : '#374151',
+                          lineHeight: 1.35,
+                          wordBreak: 'break-word',
+                        }}>
+                          {sc.schoolName}
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
               )}
             </div>
+
+            {/* Selected school chips preview */}
+            {(form.schoolIds ?? []).length > 0 && (
+              <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {(form.schoolIds ?? []).slice(0, 8).map(sid => {
+                  const sc = schools.find(s => s.id === sid)
+                  return sc ? (
+                    <span key={sid} style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      background: '#eff6ff', color: 'var(--navy)',
+                      border: '1px solid #bfdbfe', borderRadius: 20,
+                      fontSize: 11, fontWeight: 600, padding: '2px 8px', cursor: 'pointer',
+                    }} onClick={() => toggleSchool(sid)} title="Click to remove">
+                      {sc.schoolName} ×
+                    </span>
+                  ) : null
+                })}
+                {(form.schoolIds ?? []).length > 8 && (
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', padding: '2px 4px', alignSelf: 'center' }}>
+                    +{(form.schoolIds ?? []).length - 8} more
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <FormActions onCancel={() => setShowForm(false)} onSave={save} saving={saving} />

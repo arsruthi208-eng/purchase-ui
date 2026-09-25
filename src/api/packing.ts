@@ -23,4 +23,5 @@ export const packingApi = {
   getById: (id: string) => api.get<PackingEntry>(`/api/v1/packing/${id}`).then(r => r.data),
   create: (data: CreatePackingRequest) => api.post<PackingEntry>('/api/v1/packing', data).then(r => r.data),
   confirm: (id: string) => api.post<PackingEntry>(`/api/v1/packing/${id}/confirm`).then(r => r.data),
+  delete: (id: string) => api.delete(`/api/v1/packing/${id}`),
 }

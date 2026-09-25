@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { dashboardApi, type ProductionReport, type DepartmentStatus, type ProductionReportOrder } from '../api/dashboard'
 import { PRODUCTION_STAGES, STAGE_LABELS } from '../api/schoolOrders'
-import { LoadError } from '../components/ui'
+import { stockApi, type StockBalanceSummary } from '../api/stock'
+import { LoadError, StockAlertBanner } from '../components/ui'
 
 const PAGE_SIZE = 100
 const DEPTS = ['cutting', 'unit', 'kaja', 'ironing', 'packing', 'dispatch'] as const
@@ -83,6 +84,7 @@ export default function Dashboard() {
   const [query, setQuery] = useState('')
   const [stage, setStage] = useState('')
   const [page, setPage] = useState(1)
+  const [fabricBalances, setFabricBalances] = useState<StockBalanceSummary[]>([])
 
   const load = () => {
     setLoading(true)
@@ -91,6 +93,7 @@ export default function Dashboard() {
       .then(data => { setReport(data); setLoadError(null) })
       .catch((e: Error) => { setReport(null); setLoadError(e.message) })
       .finally(() => setLoading(false))
+    stockApi.listBalances('FABRIC').then(setFabricBalances).catch(() => {/* non-blocking */})
   }
 
   useEffect(load, [])
@@ -148,6 +151,10 @@ export default function Dashboard() {
   const onQueryChange = (v: string) => { setQuery(v); setPage(1) }
   const onStageChange = (v: string) => { setStage(v); setPage(1) }
 
+  const belowMin = fabricBalances.filter(
+    b => b.minStockMeters != null && b.balance < b.minStockMeters!
+  ).map(b => ({ name: b.referenceName, balance: b.balance, minStockMeters: b.minStockMeters! }))
+
   return (
     <div className="page">
       <div className="page-header">
@@ -156,6 +163,8 @@ export default function Dashboard() {
           <div className="page-subtitle">Live style status by department — filter by school order</div>
         </div>
       </div>
+
+      <StockAlertBanner items={belowMin} />
 
       <div className="card">
         <div className="card-header" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>

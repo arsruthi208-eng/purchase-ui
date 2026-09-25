@@ -8,7 +8,7 @@ import {
   type DcSourceInfo,
 } from '../api/stageGrn'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -53,6 +53,7 @@ export default function StageGrnPage() {
     return Array.from(new Set([...fromSources, ...fromRecords])).sort()
   }, [records, sources])
 
+  const [sortDesc, setSortDesc] = useState(true)
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return records.filter(r => {
@@ -68,6 +69,9 @@ export default function StageGrnPage() {
       )
     })
   }, [records, statusFilter, sourceFilter, search])
+  const sorted = [...filtered].sort((a, b) =>
+    sortDesc ? b.receivedDate.localeCompare(a.receivedDate) : a.receivedDate.localeCompare(b.receivedDate)
+  )
 
   const openCreate = () => {
     const first = sources[0]
@@ -147,6 +151,18 @@ export default function StageGrnPage() {
       'Confirm Stage GRN',
       'This will record garment receipt from the stitching unit. This cannot be undone.',
       async () => { try { await stageGrnApi.confirm(id); load() } catch (e: any) { isForbiddenError(e) ? showError('Access Denied', PERMISSION_DENIED_MSG) : showError('Confirm Failed', e.message) } }
+    )
+  }
+
+  const deleteGrn = (r: StageGrn, e: React.MouseEvent) => {
+    e.stopPropagation()
+    showConfirm(
+      'Delete Stage GRN',
+      `Permanently delete ${r.grnNumber}? This cannot be undone.`,
+      async () => {
+        try { await stageGrnApi.delete(r.id); load() }
+        catch (err: any) { isForbiddenError(err) ? showError('Access Denied', PERMISSION_DENIED_MSG) : showError('Delete Failed', err.response?.data?.message ?? err.message) }
+      }
     )
   }
 
@@ -278,7 +294,7 @@ export default function StageGrnPage() {
                 <th>Source Type</th>
                 <th>Source DC</th>
                 <th>School</th>
-                <th>Date</th>
+                <SortableTh label="Date" desc={sortDesc} onToggle={() => setSortDesc(p => !p)} />
                 <th>Status</th>
                 <th style={{ width: 120 }}></th>
               </tr>
@@ -286,7 +302,7 @@ export default function StageGrnPage() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={7}><div className="empty-state">No stage GRNs match the current filters</div></td></tr>
-              ) : filtered.map(r => (
+              ) : sorted.map(r => (
                 <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/stage-grn/${r.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{r.grnNumber}</td>
                   <td><span className="badge badge-info">{r.sourceLabel || r.sourceType}</span></td>
@@ -296,9 +312,16 @@ export default function StageGrnPage() {
                   <td>{r.schoolName ?? '—'}</td>
                   <td>{r.receivedDate}</td>
                   <td><span className={`badge ${statusBadge(r.status)}`}>{r.status}</span></td>
-                  <td onClick={e => e.stopPropagation()}>
+                  <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
                     {r.status === 'DRAFT' && (
                       <button className="btn btn-sm btn-secondary" onClick={() => confirmGrn(r.id)}>Confirm</button>
+                    )}
+                    {r.status === 'DRAFT' ? (
+                      <button className="btn-icon" title="Delete draft" style={{ color: '#dc2626', marginLeft: 6 }} onClick={e => deleteGrn(r, e)}>
+                        <Trash2 size={14} />
+                      </button>
+                    ) : (
+                      <Trash2 size={14} style={{ color: '#d1d5db', marginLeft: 6, verticalAlign: 'middle' }} title="Cannot delete — already confirmed" />
                     )}
                   </td>
                 </tr>

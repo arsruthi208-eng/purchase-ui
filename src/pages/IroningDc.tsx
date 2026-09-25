@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus } from '../icons'
+import { Plus, Trash2 } from '../icons'
 import { ironingDcApi, type IroningDc, type CreateIroningDcRequest } from '../api/ironingDc'
 import { stitchingUnitsApi, type StitchingUnit } from '../api/stitchingUnits'
 import { schoolOrdersApi, type SchoolOrderSummary, type SchoolOrderDetail } from '../api/schoolOrders'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar } from '../components/ui'
+import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
@@ -104,6 +104,19 @@ export default function IroningDc() {
     )
   }
 
+  const deleteDc = (d: IroningDc, e: React.MouseEvent) => {
+    e.stopPropagation()
+    showConfirm(
+      'Delete Ironing DC',
+      `Permanently delete ${d.dcNumber}? This cannot be undone.`,
+      async () => {
+        try { await ironingDcApi.delete(d.id); load() }
+        catch (err: any) { isForbiddenError(err) ? showError('Access Denied', PERMISSION_DENIED_MSG) : showError('Delete Failed', err.response?.data?.message ?? err.message) }
+      }
+    )
+  }
+
+  const [sortDesc, setSortDesc] = useState(true)
   const filtered = items.filter(r => {
     if (statusFilter && r.status !== statusFilter) return false
     if (unitFilter && r.stitchingUnitName !== unitFilter) return false
@@ -113,6 +126,9 @@ export default function IroningDc() {
     }
     return true
   })
+  const sorted = [...filtered].sort((a, b) =>
+    sortDesc ? b.deliveryDate.localeCompare(a.deliveryDate) : a.deliveryDate.localeCompare(b.deliveryDate)
+  )
 
   return (
     <div className="page">
@@ -257,7 +273,7 @@ export default function IroningDc() {
                 <th>Sales Order</th>
                 <th>School</th>
                 <th>Stitching Unit</th>
-                <th>Date</th>
+                <SortableTh label="Date" desc={sortDesc} onToggle={() => setSortDesc(p => !p)} />
                 <th>Status</th>
                 <th style={{ width: 120 }}></th>
               </tr>
@@ -265,7 +281,7 @@ export default function IroningDc() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={7}><div className="empty-state">No ironing DCs yet</div></td></tr>
-              ) : filtered.map(d => (
+              ) : sorted.map(d => (
                 <tr key={d.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/ironing-dc/${d.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{d.dcNumber}</td>
                   <td>{d.schoolOrderNumber ?? '—'}</td>
@@ -273,9 +289,16 @@ export default function IroningDc() {
                   <td>{d.stitchingUnitName}</td>
                   <td>{d.deliveryDate}</td>
                   <td><span className={`badge ${statusBadge(d.status)}`}>{d.status}</span></td>
-                  <td onClick={e => e.stopPropagation()}>
+                  <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
                     {d.status === 'DRAFT' && (
                       <button className="btn btn-sm btn-secondary" onClick={() => confirmDc(d.id)}>Confirm</button>
+                    )}
+                    {d.status === 'DRAFT' ? (
+                      <button className="btn-icon" title="Delete draft" style={{ color: '#dc2626', marginLeft: 6 }} onClick={e => deleteDc(d, e)}>
+                        <Trash2 size={14} />
+                      </button>
+                    ) : (
+                      <Trash2 size={14} style={{ color: '#d1d5db', marginLeft: 6, verticalAlign: 'middle' }} title="Cannot delete — already confirmed" />
                     )}
                   </td>
                 </tr>
