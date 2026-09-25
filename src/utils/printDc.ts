@@ -55,7 +55,7 @@ function buildHtml(opts: {
   const { title, dcType, dcNumber, logoDataUrl, summaryFields, statsHtml, bodyHtml } = opts
   const logoHtml = logoDataUrl
     ? `<img src="${logoDataUrl}" class="logo" alt="Apple Uniformm">`
-    : `<div class="brand-text">${COMPANY_NAME}</div>`
+    : ''
 
   const summaryRows = summaryFields
     .map(f => `<div class="field"><div class="field-lbl">${f.label}</div><div class="field-val">${f.value}</div></div>`)
@@ -67,17 +67,15 @@ function buildHtml(opts: {
 <meta charset="UTF-8">
 <title>${title}</title>
 <style>
-  @page { size: A4 portrait; margin: 10mm 12mm; }
+  @page { size: A4 portrait; margin: 0; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #111; background: #fff; }
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #111; background: #fff; padding: 10mm 12mm; }
 
   /* ── header ── */
   .hdr { text-align: center; padding-bottom: 8px; border-bottom: 2px solid #1b7a3d; margin-bottom: 10px; }
-  .logo { height: 48px; width: auto; }
-  .brand-text { font-size: 22px; font-weight: 800; color: #c4161c; letter-spacing: 0.04em; }
-  .brand-name { font-size: 20px; font-weight: 800; color: #c4161c; letter-spacing: 0.04em; margin-top: 2px; }
-  .tagline { font-size: 10px; font-weight: 700; color: #1b5e20; margin-top: 1px; }
-  .address { font-size: 10px; color: #444; margin-top: 1px; }
+  .logo { height: 72px; width: auto; }
+  .tagline { font-size: 10px; font-weight: 700; color: #1b5e20; margin-top: 3px; }
+  .address { font-size: 10px; color: #444; margin-top: 2px; }
 
   /* ── DC type banner ── */
   .dc-banner {
@@ -111,9 +109,11 @@ function buildHtml(opts: {
   tfoot td { background: #e8f5e9; font-weight: 700; border-top: 2px solid #1b7a3d; }
 
   /* ── footer ── */
-  .footer { margin-top: 24px; display: flex; justify-content: flex-end; }
-  .sign-block { text-align: center; }
-  .sign-line { width: 160px; border-top: 1px solid #333; padding-top: 4px; font-size: 11px; font-weight: 700; }
+  .footer { margin-top: 56px; display: flex; justify-content: flex-end; }
+  .sign-block { text-align: center; border: 1px solid #94a3b8; border-radius: 6px; padding: 10px 28px 8px; min-width: 210px; }
+  .sign-title { font-size: 11px; font-weight: 700; color: #c4161c; margin-bottom: 4px; }
+  .sign-space { height: 52px; }
+  .sign-line { border-top: 1px solid #333; padding-top: 4px; font-size: 10px; color: #555; }
 
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -123,7 +123,6 @@ function buildHtml(opts: {
 <body>
   <div class="hdr">
     ${logoHtml}
-    <div class="brand-name">${COMPANY_NAME}</div>
     <div class="tagline">${COMPANY_TAGLINE}</div>
     <div class="address">${COMPANY_ADDRESS}</div>
   </div>
@@ -140,7 +139,9 @@ function buildHtml(opts: {
 
   <div class="footer">
     <div class="sign-block">
-      <div class="sign-line">Authorised Signatory</div>
+      <div class="sign-title">Authorised by</div>
+      <div class="sign-space"></div>
+      <div class="sign-line">Signature &amp; Date</div>
     </div>
   </div>
 
@@ -156,18 +157,14 @@ function buildHtml(opts: {
 }
 
 function openPrint(html: string): void {
-  const w = window.open('', '_blank', 'width=794,height=1123')
+  const blob = new Blob([html], { type: 'text/html' })
+  const url  = URL.createObjectURL(blob)
+  const w = window.open(url, '_blank', 'width=794,height=1123')
   if (!w) {
-    const blob = new Blob([html], { type: 'text/html' })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a')
+    const a = document.createElement('a')
     a.href = url; a.target = '_blank'; a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
-    return
   }
-  w.document.open()
-  w.document.write(html)
-  w.document.close()
+  setTimeout(() => URL.revokeObjectURL(url), 60000)
 }
 
 function statHtml(label: string, value: string): string {

@@ -3,8 +3,6 @@ import logoSrc from '../assets/apple-uniformm-logo.png'
 
 const COMPANY_ADDRESS = '3/190, Mettupalayam road, Negamam, Sathyamangalam'
 const TAGLINE = 'Manufacturer of SCHOOL, COLLEGE, SPORTS & INDUSTRIAL UNIFORMS.'
-const DEFAULT_NOTES =
-  'We hereby confirm the above quantities and are pleased to proceed with production as per your order. Please feel free to reach out for any further clarification or additional requirements. Thank you for your trust and support.'
 
 async function getLogoDataUrl(): Promise<string> {
   return new Promise(resolve => {
@@ -187,32 +185,33 @@ function esc(v?: string | number | null): string {
 
 function buildHtml(order: SchoolOrderDetail, logoDataUrl: string): string {
   const kind = order.orderKind || 'SCHOOL_STD'
-  const logoHtml = logoDataUrl
+  const logoImg = logoDataUrl
     ? `<img src="${logoDataUrl}" alt="Apple Uniformm" class="logo">`
-    : `<div class="brand-name">APPLE UNIFORMM</div>`
+    : ''
   const listBar = order.orderListLabel
     ? `<div class="list-bar"><span>ORDER LIST : ${esc(order.orderListLabel)}</span><span>DATE : ${fmtDate(order.orderDate)}</span></div>`
     : ''
   const body = kind === 'SCHOOL_SIZE' ? sizeBody(order.items)
     : kind === 'CORPORATE' ? corpBody(order.items)
     : stdBody(order.items)
-  const notes = (order.notes?.trim() || DEFAULT_NOTES)
+  const totalQty = order.items.reduce((s, i) => s + i.quantity, 0)
+  const stds = [...new Set(order.items.map(i => i.standard).filter(Boolean))].join(', ')
+  const stdPart = stds ? `Standards ${stds}` : 'the requested items'
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title></title>
+  <title>${order.orderNumber} SO</title>
   <style>
-    @page { size: A4 portrait; margin: 10mm; }
+    @page { size: A4 portrait; margin: 0; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #111; background: #fff; }
+    body { font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #111; background: #fff; padding: 10mm; }
     .sheet { min-height: 277mm; display: flex; flex-direction: column; }
-    .hdr { text-align: center; padding-bottom: 6px; border-bottom: 2px solid #1b7a3d; margin-bottom: 8px; }
-    .logo { height: 48px; width: auto; }
-    .brand-name { font-size: 22px; font-weight: 800; color: #c4161c; letter-spacing: 0.04em; }
-    .tag { font-size: 10.5px; font-weight: 700; color: #1b5e20; margin-top: 1px; }
-    .addr { font-size: 11px; margin-top: 1px; color: #333; }
+    .hdr { text-align: center; padding-bottom: 8px; border-bottom: 2px solid #1b7a3d; margin-bottom: 8px; }
+    .logo { height: 72px; width: auto; }
+    .tag { font-size: 10.5px; font-weight: 700; color: #1b5e20; margin-top: 3px; }
+    .addr { font-size: 11px; margin-top: 2px; color: #333; }
     .meta { display: flex; justify-content: space-between; align-items: flex-start; margin: 7px 0 8px; }
     .to { font-size: 12px; line-height: 1.5; }
     .to strong { display: block; margin-bottom: 2px; }
@@ -239,11 +238,10 @@ function buildHtml(order: SchoolOrderDetail, logoDataUrl: string): string {
       background: #f0f0f0; font-weight: 700; font-size: 12px;
       border-top: 2px solid #333; border-color: #999;
     }
-    .notes { margin-top: 12px; }
-    .notes h4 { font-size: 11.5px; margin-bottom: 3px; }
-    .notes p { line-height: 1.45; font-size: 11.5px; color: #333; }
-    .sign { margin-top: auto; padding-top: 24px; }
-    .sign-lbl { margin-top: 32px; font-weight: 700; font-size: 12px; }
+    .confirm-block { margin-top: 24px; padding: 14px 0 0 0; }
+    .confirm-block p { font-size: 12.5px; color: #111; line-height: 1.7; margin-bottom: 8px; }
+    .confirm-block p:last-child { margin-bottom: 0; }
+    .regards { margin-top: 52px; padding-top: 48px; font-size: 14.5px; line-height: 1.7; color: #111; font-weight: bold; }
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
@@ -252,8 +250,7 @@ function buildHtml(order: SchoolOrderDetail, logoDataUrl: string): string {
 <body>
   <div class="sheet">
     <div class="hdr">
-      ${logoHtml}
-      <div class="brand-name">APPLE UNIFORMM</div>
+      ${logoImg}
       <div class="tag">${TAGLINE}</div>
       <div class="addr">${COMPANY_ADDRESS}</div>
     </div>
@@ -269,16 +266,17 @@ function buildHtml(order: SchoolOrderDetail, logoDataUrl: string): string {
       </div>
     </div>
     <div class="subject">SUBJECT : ${esc(defaultSubject(order))}</div>
-    <div class="intro">Dear Madam,<br>Thank you for your order. We are pleased to confirm the following details.</div>
+    <div class="intro">Respected Mam/Sir,<br>Thank you for your order. We are pleased to confirm the following details.</div>
     ${listBar}
     ${body}
-    <div class="notes">
-      <h4>NOTES :</h4>
-      <p>${esc(notes)}</p>
-      <p style="margin-top:8px">Kind regards,<br>APPLE UNIFORMM</p>
+    <div class="confirm-block">
+      <p>This is an order confirmation for <strong>${esc(order.schoolName)}</strong>, covering ${esc(stdPart)} with a total quantity of <strong>${totalQty.toLocaleString('en-IN')}</strong> pieces.</p>
+      <p>We seek your kind approval and acknowledgement of the above order details to proceed with production as per the agreed specifications.</p>
+      <p>Upon your acknowledgement, we will take this order forward and ensure timely delivery as per the agreed schedule.</p>
     </div>
-    <div class="sign">
-      <div class="sign-lbl">Authorised Signatory</div>
+    <div class="regards">
+      Kind regards,<br>
+      <strong>APPLE UNIFORMM</strong>
     </div>
   </div>
   <script>
@@ -295,18 +293,12 @@ function buildHtml(order: SchoolOrderDetail, logoDataUrl: string): string {
 export async function printSchoolOrder(order: SchoolOrderDetail): Promise<void> {
   const logoDataUrl = await getLogoDataUrl()
   const html = buildHtml(order, logoDataUrl)
-  const printWindow = window.open('', '_blank', 'width=794,height=1123')
+  const blob = new Blob([html], { type: 'text/html' })
+  const url  = URL.createObjectURL(blob)
+  const printWindow = window.open(url, '_blank', 'width=794,height=1123')
   if (!printWindow) {
-    const blob = new Blob([html], { type: 'text/html' })
-    const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
-    a.target = '_blank'
-    a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
-    return
+    a.href = url; a.target = '_blank'; a.click()
   }
-  printWindow.document.open()
-  printWindow.document.write(html)
-  printWindow.document.close()
+  setTimeout(() => URL.revokeObjectURL(url), 60000)
 }

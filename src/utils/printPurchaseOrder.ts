@@ -221,7 +221,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title></title>
   <style>
-    @page { size: A4 portrait; margin: 8mm; }
+    @page { size: A4 portrait; margin: 0; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { overflow: hidden; }
     body {
@@ -229,6 +229,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
       font-size: 12.5px;
       color: #111;
       background: #fff;
+      padding: 8mm;
     }
     table { border-collapse: collapse; width: 100%; }
     td, th { vertical-align: middle; }
