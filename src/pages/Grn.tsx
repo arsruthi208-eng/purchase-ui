@@ -74,9 +74,9 @@ export default function Grn() {
       const newLines = await Promise.all(
         detail.items.map(async item => {
           let startRollNo = 1
-          try { startRollNo = await fabricRollsApi.nextRollNumber(item.fabricId) } catch { /* ignore */ }
+          try { startRollNo = await fabricRollsApi.nextRollNumber(item.fabricId ?? '') } catch { /* ignore */ }
           return {
-            fabricId: item.fabricId,
+            fabricId: item.fabricId ?? '',
             fabricLabel: `${item.fabricCode} — ${item.fabricName}`,
             orderedMeters: item.orderedQuantity,
             rolls: [],
@@ -104,7 +104,7 @@ export default function Grn() {
       ? { ...l, rolls: l.rolls.map((r, ri) => ri === rollIdx ? { ...r, quantityMeters: val } : r) }
       : l))
 
-  const removeLine = (idx: number) => setLines(prev => prev.filter((_, i) => i !== idx))
+  const _removeLine = (idx: number) => setLines(prev => prev.filter((_, i) => i !== idx))
 
   const save = async () => {
     if (!poId || !receivedDate) { setError('PO and received date are required'); return }
@@ -391,7 +391,7 @@ export default function Grn() {
                         <Trash2 size={14} />
                       </button>
                     ) : (
-                      <Trash2 size={14} style={{ color: '#d1d5db', marginLeft: 6, verticalAlign: 'middle' }} title="Cannot delete — already confirmed" />
+                      <Trash2 size={14} style={{ color: '#d1d5db', marginLeft: 6, verticalAlign: 'middle' }} aria-label="Cannot delete — already confirmed" />
                     )}
                   </td>
                 </tr>

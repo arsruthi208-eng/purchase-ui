@@ -27,6 +27,7 @@ export interface CuttingOrder {
   cuttingDate: string
   status: string
   sentToPersonName?: string
+  notes?: string
   items: CuttingItem[]
 }
 
