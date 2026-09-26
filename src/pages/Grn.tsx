@@ -104,8 +104,6 @@ export default function Grn() {
       ? { ...l, rolls: l.rolls.map((r, ri) => ri === rollIdx ? { ...r, quantityMeters: val } : r) }
       : l))
 
-  const _removeLine = (idx: number) => setLines(prev => prev.filter((_, i) => i !== idx))
-
   const save = async () => {
     if (!poId || !receivedDate) { setError('PO and received date are required'); return }
     if (lines.some(l => !l.fabricId)) { setError('Each line needs a fabric selected'); return }
