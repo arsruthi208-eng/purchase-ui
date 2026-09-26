@@ -11,7 +11,6 @@ export default function Schools() {
   const [loadError, setLoadError] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
-  const boards = Array.from(new Set(schools.map(s => s.board).filter(Boolean))).sort()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<School | null>(null)
   const [form, setForm] = useState<CreateSchoolRequest>({ schoolCode: '', schoolName: '' })

@@ -82,9 +82,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
   const nItems = Math.max(po.items.length, 1)
   const accRowH = nItems <= 1 ? 118 : nItems === 2 ? 86 : nItems <= 4 ? 64 : 48
   const totalOrdered = po.items.reduce((s, i) => s + i.orderedQuantity, 0)
-  const totalValue   = po.items.reduce((s, i) => s + i.orderedQuantity * i.unitPrice, 0)
 
-  const fmt = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2 })
   const fmtN = (n: number) => n.toLocaleString('en-IN')
 
   const qtyLabel = (uom: string) => {

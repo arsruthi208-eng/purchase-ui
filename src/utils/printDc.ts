@@ -5,7 +5,6 @@ import type { IroningDc } from '../api/ironingDc'
 import type { CheckingDc } from '../api/checkingDc'
 import type { UnitDc, AccessoryDc } from '../api/unitDc'
 
-const COMPANY_NAME    = 'APPLE UNIFORMM'
 const COMPANY_TAGLINE = 'Manufacturer of SCHOOL, COLLEGE, SPORTS &amp; INDUSTRIAL UNIFORMS.'
 const COMPANY_ADDRESS = '3/190, Mettupalayam road, Negamam, Sathyamangalam'
 

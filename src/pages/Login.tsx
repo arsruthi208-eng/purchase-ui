@@ -14,7 +14,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [loginState, setLoginState] = useState<LoginState>('idle')
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
-  const [errorType, setErrorType] = useState<string | null>(null)
+  const [_errorType, setErrorType] = useState<string | null>(null)
 
   const isLocked    = loginState === 'locked'
   const isDisabled  = loginState === 'disabled'

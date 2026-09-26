@@ -91,7 +91,7 @@ export default function PurchaseOrderDetail() {
   const isAccessory = po.poKind === 'ACCESSORY'
   const listPath = isAccessory ? '/accessory-purchase-orders' : '/purchase-orders'
   const totalOrdered = po.items.reduce((s, i) => s + i.orderedQuantity, 0)
-  const totalValue   = po.items.reduce((s, i) => s + i.orderedQuantity * i.unitPrice, 0)
+  const _totalValue  = po.items.reduce((s, i) => s + i.orderedQuantity * i.unitPrice, 0)
   const uoms = [...new Set(po.items.map(i => i.unitOfMeasure))]
   const qtySuffix = isAccessory
     ? (uoms.length === 1 ? ` ${uoms[0]}` : '')

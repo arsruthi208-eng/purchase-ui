@@ -198,7 +198,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
           updated.weightGsm = fab?.weightGsm
           updated.widthInches = fab?.widthInches
           if (p.schoolOrderId) {
-            const meters = calcMeters(updated.fabricId, p.schoolOrderId)
+            const meters = calcMeters(updated.fabricId ?? '', p.schoolOrderId)
             if (meters !== null) updated.orderedQuantity = meters
           }
         }

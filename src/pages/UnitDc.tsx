@@ -305,7 +305,7 @@ export default function UnitDc() {
                         <Trash2 size={14} />
                       </button>
                     ) : (
-                      <Trash2 size={14} style={{ color: '#d1d5db', marginLeft: 6, verticalAlign: 'middle' }} title="Cannot delete — already confirmed" />
+                      <Trash2 size={14} style={{ color: '#d1d5db', marginLeft: 6, verticalAlign: 'middle' }} aria-label="Cannot delete — already confirmed" />
                     )}
                   </td>
                 </tr>
