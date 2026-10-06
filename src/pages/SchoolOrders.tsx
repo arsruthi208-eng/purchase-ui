@@ -20,7 +20,7 @@ type Line = CreateSchoolOrderRequest['items'][0]
 
 const emptyLine = (kind: SchoolOrderKind): Line => {
   if (kind === 'SCHOOL_SIZE') return { styleId: '', gender: 'BOYS', standard: '', size: '', quantity: 0, sectionTitle: '' }
-  if (kind === 'CORPORATE') return { styleId: '', gender: 'BOYS', standard: '1 YEAR', quantity: 0, studentCount: undefined, setCount: undefined, sectionTitle: '' }
+  if (kind === 'CORPORATE') return { styleId: '', gender: 'BOYS', quantity: 0, setCount: undefined, sectionTitle: '' }
   return { styleId: '', gender: 'BOYS', standard: '', quantity: 0, totalStudentCount: undefined, studentCount: undefined }
 }
 
@@ -116,8 +116,8 @@ export default function SchoolOrders() {
     if (kind === 'SCHOOL_STD' && form.items.some(l => !l.quantity)) {
       setError('Each line needs qty'); return
     }
-    if (kind === 'CORPORATE' && form.items.some(l => l.studentCount == null && l.setCount == null)) {
-      setError('Each corporate line needs students and/or sets'); return
+    if (kind === 'CORPORATE' && form.items.some(l => l.setCount == null)) {
+      setError('Each corporate line needs sets'); return
     }
     setSaving(true); setError('')
     try {
@@ -170,13 +170,13 @@ export default function SchoolOrders() {
   const cols = kind === 'SCHOOL_SIZE'
     ? '1.8fr 0.9fr 0.9fr 0.7fr 0.7fr 1.1fr auto'
     : kind === 'CORPORATE'
-      ? '1.8fr 0.9fr 0.9fr 0.8fr 0.8fr 1.1fr auto'
+      ? '1.8fr 0.9fr 1.1fr 1.1fr auto'
       : '1.8fr 0.9fr 0.9fr 0.85fr 0.85fr 0.7fr auto'
 
   const headers = kind === 'SCHOOL_SIZE'
     ? ['Style *', 'Gender', 'STD', 'Size *', 'Qty *', 'Group', '']
     : kind === 'CORPORATE'
-      ? ['Style *', 'Gender', 'Year *', 'Students', 'Sets', 'Group', '']
+      ? ['Style *', 'Gender', 'Sets', 'Group', '']
       : ['Style *', 'Gender', 'STD *', 'Total students *', 'No. of students *', 'Qty *', '']
 
   const [sortDesc, setSortDesc] = useState(true)
@@ -269,12 +269,8 @@ export default function SchoolOrders() {
                 <select value={line.gender} onChange={e => updateLine(idx, { gender: e.target.value })}>
                   {GENDERS.map(g => <option key={g} value={g}>{kind === 'CORPORATE' ? (g === 'BOYS' ? "MEN'S" : g === 'GIRLS' ? 'LADIES' : g) : g}</option>)}
                 </select>
-                {kind === 'CORPORATE' ? (
-                  <select value={line.standard} onChange={e => updateLine(idx, { standard: e.target.value })}>
-                    {CORP_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                ) : (
-                  <input placeholder="Std" value={line.standard} onChange={e => updateLine(idx, { standard: e.target.value })} />
+                {kind !== 'CORPORATE' && (
+                  <input placeholder="Std" value={line.standard ?? ''} onChange={e => updateLine(idx, { standard: e.target.value })} />
                 )}
                 {kind === 'SCHOOL_SIZE' && (
                   <>
@@ -292,7 +288,6 @@ export default function SchoolOrders() {
                 )}
                 {kind === 'CORPORATE' && (
                   <>
-                    <input type="number" min={0} placeholder="Students" value={line.studentCount ?? ''} onChange={e => updateLine(idx, { studentCount: e.target.value === '' ? undefined : Number(e.target.value) })} />
                     <input type="number" min={0} placeholder="Sets" value={line.setCount ?? ''} onChange={e => updateLine(idx, { setCount: e.target.value === '' ? undefined : Number(e.target.value) })} />
                     <input placeholder="Group" value={line.sectionTitle ?? ''} onChange={e => updateLine(idx, { sectionTitle: e.target.value })} />
                   </>

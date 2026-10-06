@@ -49,7 +49,7 @@ export interface SchoolOrderDetail {
 export interface CreateSchoolOrderItemRequest {
   styleId: string
   gender: string
-  standard: string
+  standard?: string
   quantity: number
   size?: string
   totalStudentCount?: number
