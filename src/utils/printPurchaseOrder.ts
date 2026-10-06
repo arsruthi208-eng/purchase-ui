@@ -407,7 +407,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
       @page { size: A4 portrait; margin: 8mm; }
       html, body { overflow: hidden; }
       .sheet { height: 281mm; max-height: 281mm; }
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
   </style>
 </head>
