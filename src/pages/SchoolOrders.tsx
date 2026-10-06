@@ -14,7 +14,6 @@ import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 
 const GENDERS = ['BOYS', 'GIRLS', 'UNISEX'] as const
 const KINDS: SchoolOrderKind[] = ['SCHOOL_STD', 'SCHOOL_SIZE', 'CORPORATE']
-const CORP_YEARS = ['1 YEAR', '2 YEAR', '3 YEAR', '4 YEAR']
 
 type Line = CreateSchoolOrderRequest['items'][0]
 
