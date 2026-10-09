@@ -6,6 +6,7 @@ import { useApiData } from '../hooks/useApiData'
 import { BackButton, InfoRow, DocStat, StatsStrip, StatDivider, statusBadge } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
+import { shortUnit, sharedUnitSuffix } from '../utils/units'
 
 export default function StitchingDcDetail() {
   const { id } = useParams<{ id: string }>()
@@ -63,6 +64,7 @@ export default function StitchingDcDetail() {
 
   const totalQty  = doc.items.reduce((s, i) => s + i.quantity, 0)
   const totalKaja = doc.kajaConsumption.reduce((s, k) => s + k.quantity, 0)
+  const kajaSuffix = sharedUnitSuffix(doc.kajaConsumption.map(k => k.unitOfMeasure))
 
   return (
     <div className="page">
@@ -175,14 +177,14 @@ export default function StitchingDcDetail() {
                   <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{idx + 1}</td>
                   <td style={{ fontWeight: 600 }}>{k.accessoryName}</td>
                   <td>{k.unitOfMeasure}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--navy)' }}>{k.quantity.toLocaleString()}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--navy)' }}>{k.quantity.toLocaleString()} {shortUnit(k.unitOfMeasure)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr style={{ borderTop: '2px solid var(--border)', fontWeight: 700 }}>
                 <td colSpan={3} style={{ textAlign: 'right', paddingRight: 12, fontSize: 13 }}>Total Kaja</td>
-                <td style={{ textAlign: 'right', color: 'var(--navy)', fontSize: 15 }}>{totalKaja.toLocaleString()}</td>
+                <td style={{ textAlign: 'right', color: 'var(--navy)', fontSize: 15 }}>{totalKaja.toLocaleString()}{kajaSuffix}</td>
               </tr>
             </tfoot>
           </table>

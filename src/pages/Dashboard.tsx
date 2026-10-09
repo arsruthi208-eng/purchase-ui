@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { dashboardApi, type ProductionReport, type DepartmentStatus, type ProductionReportOrder } from '../api/dashboard'
 import { PRODUCTION_STAGES, STAGE_LABELS } from '../api/schoolOrders'
 import { stockApi, type StockBalanceSummary } from '../api/stock'
+import { fabricsApi } from '../api/fabrics'
 import { LoadError, StockAlertBanner } from '../components/ui'
+import { shortUnit } from '../utils/units'
 
 const PAGE_SIZE = 100
 const DEPTS = ['cutting', 'unit', 'kaja', 'ironing', 'packing', 'dispatch'] as const
@@ -85,6 +87,7 @@ export default function Dashboard() {
   const [stage, setStage] = useState('')
   const [page, setPage] = useState(1)
   const [fabricBalances, setFabricBalances] = useState<StockBalanceSummary[]>([])
+  const [fabricUnits, setFabricUnits] = useState<Record<string, string>>({})
 
   const load = () => {
     setLoading(true)
@@ -94,6 +97,9 @@ export default function Dashboard() {
       .catch((e: Error) => { setReport(null); setLoadError(e.message) })
       .finally(() => setLoading(false))
     stockApi.listBalances('FABRIC').then(setFabricBalances).catch(() => {/* non-blocking */})
+    fabricsApi.list().then(list => {
+      setFabricUnits(Object.fromEntries(list.map(f => [f.id, f.unitOfMeasure])))
+    }).catch(() => {/* non-blocking */})
   }
 
   useEffect(load, [])
@@ -153,7 +159,12 @@ export default function Dashboard() {
 
   const belowMin = fabricBalances.filter(
     b => b.minStockMeters != null && b.balance < b.minStockMeters!
-  ).map(b => ({ name: b.referenceName, balance: b.balance, minStockMeters: b.minStockMeters! }))
+  ).map(b => ({
+    name: b.referenceName,
+    balance: b.balance,
+    minStockMeters: b.minStockMeters!,
+    unit: shortUnit(fabricUnits[b.referenceId] ?? 'METER'),
+  }))
 
   return (
     <div className="page">

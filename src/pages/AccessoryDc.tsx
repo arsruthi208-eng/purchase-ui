@@ -9,6 +9,7 @@ import { stockApi } from '../api/stock'
 import { useApiList } from '../hooks/useApiData'
 import { Modal, FormError, FormActions, AlertDialog, type StockShortfall, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
+import { shortUnit } from '../utils/units'
 
 type Line = CreateAccessoryDcRequest['items'][0]
 
@@ -103,7 +104,7 @@ export default function AccessoryDcPage() {
             required: qty,
             available,
             shortfall: qty - available,
-            unit: acc?.unitOfMeasure ?? 'PCS',
+            unit: shortUnit(acc?.unitOfMeasure ?? 'PCS'),
           }
         })
 

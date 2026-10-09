@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { cuttingApi, type CuttingOrder } from '../api/cutting'
 import { fabricRollsApi, type FabricRoll } from '../api/fabricRolls'
+import { fabricsApi } from '../api/fabrics'
 import { printCuttingDc } from '../utils/printDc'
-import { useApiData } from '../hooks/useApiData'
+import { useApiData, useApiList } from '../hooks/useApiData'
 import { BackButton, InfoRow, DocStat, StatsStrip, StatDivider, statusBadge } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
+import { shortUnit, sharedUnitSuffix } from '../utils/units'
 
 /* ── RollPicker — identical to Cutting.tsx, with requiredMeters support ── */
 function RollPicker({
@@ -16,6 +18,7 @@ function RollPicker({
   requiredMeters,
   rate,
   quantity,
+  unitOfMeasure,
 }: {
   rolls: FabricRoll[]
   selectedIds: string[]
@@ -23,7 +26,9 @@ function RollPicker({
   requiredMeters?: number
   rate?: number
   quantity?: number
+  unitOfMeasure: string
 }) {
+  const unit = shortUnit(unitOfMeasure)
   const selectedMeters = rolls.filter(r => selectedIds.includes(r.id)).reduce((s, r) => s + Number(r.quantityMeters), 0)
   const shortage = requiredMeters != null && requiredMeters > 0 ? requiredMeters - selectedMeters : 0
 
@@ -37,8 +42,8 @@ function RollPicker({
           display: 'flex', alignItems: 'center', gap: 6,
         }}>
           <span style={{ color: '#15803d', fontWeight: 700 }}>📐 Required fabric:</span>
-          <strong style={{ fontSize: 14, color: '#166534' }}>{requiredMeters.toFixed(2)} m</strong>
-          <span style={{ color: '#6b7280', fontSize: 11 }}>({rate} m/pc × {quantity} pcs)</span>
+          <strong style={{ fontSize: 14, color: '#166534' }}>{requiredMeters.toFixed(2)} {unit}</strong>
+          <span style={{ color: '#6b7280', fontSize: 11 }}>({rate} {unit}/pc × {quantity} pcs)</span>
         </div>
       )}
 
@@ -51,11 +56,11 @@ function RollPicker({
           borderRadius: 6, border: `1px solid ${selectedMeters >= requiredMeters ? '#86efac' : '#fde047'}`,
         }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: '#92400e' }}>
-            Required: <strong style={{ fontSize: 13, color: '#78350f' }}>{requiredMeters.toFixed(2)} m</strong>
+            Required: <strong style={{ fontSize: 13, color: '#78350f' }}>{requiredMeters.toFixed(2)} {unit}</strong>
           </span>
           <span style={{ fontSize: 11, fontWeight: 700, color: selectedMeters >= requiredMeters ? '#15803d' : '#b45309' }}>
-            Selected: {selectedMeters.toFixed(2)} m
-            {shortage > 0 && <span style={{ color: '#dc2626', marginLeft: 6 }}>({shortage.toFixed(2)} m short)</span>}
+            Selected: {selectedMeters.toFixed(2)} {unit}
+            {shortage > 0 && <span style={{ color: '#dc2626', marginLeft: 6 }}>({shortage.toFixed(2)} {unit} short)</span>}
             {shortage <= 0 && selectedMeters > 0 && <span style={{ color: '#15803d', marginLeft: 6 }}>✓</span>}
           </span>
         </div>
@@ -72,7 +77,7 @@ function RollPicker({
           Tap a roll to select / deselect &nbsp;·&nbsp; {rolls.length} total
         </span>
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy)' }}>
-          {selectedIds.length} selected &nbsp;=&nbsp; {selectedMeters.toFixed(2)} m
+          {selectedIds.length} selected &nbsp;=&nbsp; {selectedMeters.toFixed(2)} {unit}
         </span>
       </div>
 
@@ -104,7 +109,7 @@ function RollPicker({
                   ROLL #{r.rollNumber}
                 </span>
                 <span style={{ fontSize: 14, marginTop: 3, opacity: 0.85 }}>
-                  {Number(r.quantityMeters).toFixed(2)} m
+                  {Number(r.quantityMeters).toFixed(2)} {unit}
                 </span>
               </button>
             )
@@ -119,6 +124,8 @@ function RollPicker({
 export default function CuttingDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { data: fabrics } = useApiList(() => fabricsApi.list())
+  const unitOf = (fabricId: string) => fabrics.find(f => f.id === fabricId)?.unitOfMeasure ?? 'METER'
   const { data: doc, loading, reload } = useApiData(
     () => id ? cuttingApi.getById(id) : Promise.resolve(null as CuttingOrder | null),
     [id]
@@ -268,6 +275,7 @@ export default function CuttingDetail() {
 
   const totalQty    = doc.items.reduce((s, i) => s + i.quantity, 0)
   const totalFabric = doc.items.reduce((s, i) => s + i.fabricConsumed, 0)
+  const fabricTotalSuffix = sharedUnitSuffix(doc.items.map(i => unitOf(i.fabricId)))
 
   return (
     <div className="page">
@@ -346,7 +354,7 @@ export default function CuttingDetail() {
           <StatDivider />
           <DocStat label="Total Pieces"          value={totalQty.toLocaleString()} />
           <StatDivider />
-          <DocStat label="Total Fabric Consumed" value={`${totalFabric.toLocaleString()} m`} />
+          <DocStat label="Total Fabric Consumed" value={`${totalFabric.toLocaleString()}${fabricTotalSuffix}`} />
         </StatsStrip>
       </div>
 
@@ -365,6 +373,7 @@ export default function CuttingDetail() {
           const rollTotal    = editing
             ? (allRolls[item.id] ?? []).filter(r => curSelected.includes(r.id)).reduce((s, r) => s + Number(r.quantityMeters), 0)
             : item.rolls.reduce((s, r) => s + Number(r.quantityMeters), 0)
+          const unit = shortUnit(unitOf(item.fabricId))
 
           return (
             <div key={item.id} style={{ borderTop: '1px solid var(--border)' }}>
@@ -423,7 +432,7 @@ export default function CuttingDetail() {
                 {/* Fabric consumed */}
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--navy)' }}>
-                    {rollTotal.toFixed(2)} m
+                    {rollTotal.toFixed(2)} {unit}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
                     {editing
@@ -452,6 +461,7 @@ export default function CuttingDetail() {
                           ? Math.round(item.fabricConsumptionRate * (editQtys[item.id] ?? item.quantity) * 100) / 100
                           : undefined
                       }
+                      unitOfMeasure={unitOf(item.fabricId)}
                     />
                   )
                 ) : (
@@ -466,7 +476,7 @@ export default function CuttingDetail() {
                       <thead>
                         <tr style={{ borderBottom: '1px solid var(--border)', background: '#f8fafc' }}>
                           <th style={{ padding: '8px 20px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Roll No</th>
-                          <th style={{ padding: '8px 20px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Meters per Roll</th>
+                          <th style={{ padding: '8px 20px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Qty per roll</th>
                           <th style={{ padding: '8px 20px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
                         </tr>
                       </thead>
@@ -476,7 +486,7 @@ export default function CuttingDetail() {
                             <td style={{ padding: '10px 20px', fontWeight: 600, fontSize: 14, color: 'var(--navy)' }}>{r.rollNumber}</td>
                             <td style={{ padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#111' }}>
                               {Number(r.quantityMeters).toFixed(2)}
-                              <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>m</span>
+                              <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>{unit}</span>
                             </td>
                             <td style={{ padding: '10px 20px' }}>
                               <span style={{
@@ -495,7 +505,7 @@ export default function CuttingDetail() {
                           <td style={{ padding: '9px 20px', fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total</td>
                           <td style={{ padding: '9px 20px', fontWeight: 700, fontSize: 14, color: 'var(--navy)' }}>
                             {rollTotal.toFixed(2)}
-                            <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>m</span>
+                            <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>{unit}</span>
                           </td>
                           <td />
                         </tr>
@@ -518,7 +528,7 @@ export default function CuttingDetail() {
         }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', gridColumn: '1 / 3' }}>Grand Total</div>
           <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 15, color: 'var(--navy)' }}>{totalQty.toLocaleString()} pcs</div>
-          <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 15, color: 'var(--navy)' }}>{totalFabric.toFixed(2)} m</div>
+          <div style={{ textAlign: 'right', fontWeight: 700, fontSize: 15, color: 'var(--navy)' }}>{totalFabric.toFixed(2)}{fabricTotalSuffix}</div>
         </div>
       </div>
     </div>

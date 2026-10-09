@@ -56,6 +56,8 @@ export const stockApi = {
   getById: (id: string) => api.get<StockEntry>(`/api/v1/stock/entries/${id}`).then(r => r.data),
   create: (data: CreateStockEntryRequest) =>
     api.post<StockEntry>('/api/v1/stock/entries', data).then(r => r.data),
+  update: (id: string, data: CreateStockEntryRequest) =>
+    api.put<StockEntry>(`/api/v1/stock/entries/${id}`, data).then(r => r.data),
   listBalances: (itemType: string) =>
     api.get<StockBalanceSummary[]>('/api/v1/stock/balances', { params: { itemType } }).then(r => r.data),
   balance: (itemType: string, referenceId: string) =>

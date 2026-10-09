@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, TrendingUp, TrendingDown, Package } from '../icons'
+import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Package } from '../icons'
 import { stockApi, type StockEntry, type StockBalanceSummary, type CreateStockEntryRequest } from '../api/stock'
 import { type RollEntry, fabricRollsApi } from '../api/fabricRolls'
 import { fabricsApi, type Fabric } from '../api/fabrics'
@@ -7,6 +7,7 @@ import { accessoriesApi, type Accessory } from '../api/accessories'
 import { Modal, FormError, FormActions, SummaryCard, statusBadge, today, SortableTh, StockAlertBanner } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
+import { shortUnit, unitWord } from '../utils/units'
 
 const ITEM_TYPES = ['FABRIC', 'ACCESSORY'] as const
 const VIEWS = ['balance', 'entries'] as const
@@ -25,13 +26,19 @@ function Pill({ active, onClick, children }: { active: boolean; onClick: () => v
 
 /** Roll sub-table used inside the stock creation form for FABRIC entries */
 function RollSubTable({
-  rolls, onChange, startRollNumber
+  rolls, onChange, startRollNumber, unitOfMeasure,
 }: {
   rolls: RollEntry[]
   onChange: (rolls: RollEntry[]) => void
   startRollNumber: number
+  unitOfMeasure: string
 }) {
-  const addRow = () => onChange([...rolls, { quantityMeters: 0, unitPrice: 0 }])
+  const unit = shortUnit(unitOfMeasure)
+  const addRow = () => {
+    const used = rolls.map((r, i) => r.rollNumber ?? startRollNumber + i)
+    const next = (used.length ? Math.max(...used) : startRollNumber - 1) + 1
+    onChange([...rolls, { quantityMeters: 0, unitPrice: 0, rollNumber: next }])
+  }
   const remove = (idx: number) => onChange(rolls.filter((_, i) => i !== idx))
   const updateMeters = (idx: number, val: number) =>
     onChange(rolls.map((r, i) => i === idx ? { ...r, quantityMeters: val } : r))
@@ -54,7 +61,7 @@ function RollSubTable({
             <thead>
               <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
                 <th style={{ padding: '6px 8px', textAlign: 'left', width: 60 }}>Roll #</th>
-                <th style={{ padding: '6px 8px', textAlign: 'left' }}>Meters (from label)</th>
+                <th style={{ padding: '6px 8px', textAlign: 'left' }}>{unitWord(unitOfMeasure)} (from label)</th>
                 <th style={{ width: 32 }} />
               </tr>
             </thead>
@@ -62,7 +69,7 @@ function RollSubTable({
               {rolls.map((r, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '6px 8px', color: 'var(--navy)', fontWeight: 700, fontFamily: 'monospace' }}>
-                    {startRollNumber + i}
+                    {r.rollNumber ?? startRollNumber + i}
                   </td>
                   <td style={{ padding: '4px 6px' }}>
                     <input type="number" step="0.01" min="0" placeholder="e.g. 40.80"
@@ -82,7 +89,7 @@ function RollSubTable({
             <tfoot>
               <tr style={{ background: 'var(--bg)', fontWeight: 600 }}>
                 <td colSpan={3} style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--navy)' }}>
-                  Total: {totalMeters.toFixed(2)} m
+                  Total: {totalMeters.toFixed(2)} {unit}
                 </td>
               </tr>
             </tfoot>
@@ -93,7 +100,8 @@ function RollSubTable({
 }
 
 /** Inline roll badge list shown in the entries view */
-function RollBadgeList({ rolls }: { rolls: { rollNumber: number; quantityMeters: number; unitPrice: number }[] }) {
+function RollBadgeList({ rolls, unitOfMeasure }: { rolls: { rollNumber: number; quantityMeters: number; unitPrice: number }[]; unitOfMeasure: string }) {
+  const unit = shortUnit(unitOfMeasure)
   if (!rolls || rolls.length === 0) return <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
@@ -102,7 +110,7 @@ function RollBadgeList({ rolls }: { rolls: { rollNumber: number; quantityMeters:
           fontSize: 11, padding: '2px 7px', background: '#dbeafe', color: '#1d4ed8',
           borderRadius: 12, fontFamily: 'monospace', fontWeight: 600
         }}>
-          #{r.rollNumber} · {r.quantityMeters.toFixed(2)}m
+          #{r.rollNumber} · {r.quantityMeters.toFixed(2)} {unit}
         </span>
       ))}
     </div>
@@ -128,11 +136,16 @@ export default function Stock() {
   const [fabricUnitPrice, setFabricUnitPrice] = useState(0)
   const [startRollNo, setStartRollNo] = useState(1)
   const [saving, setSaving] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const { dialog, showWarning, showError, showConfirm } = useAlertDialog()
 
   const isFabric = itemType === 'FABRIC'
-  const unit = isFabric ? 'm' : 'pcs'
+  const unitOf = (referenceId: string) =>
+    isFabric
+      ? fabrics.find(f => f.id === referenceId)?.unitOfMeasure ?? 'METER'
+      : accessories.find(a => a.id === referenceId)?.unitOfMeasure ?? 'PCS'
+  const formUnit = form.referenceId ? unitOf(form.referenceId) : (isFabric ? 'METER' : 'PCS')
 
   const loadBalances = () => {
     setBalLoading(true)
@@ -149,7 +162,7 @@ export default function Stock() {
       'Delete Stock Entry',
       `Permanently delete this stock entry for ${e.referenceName} on ${e.stockDate}? This cannot be undone.`,
       async () => {
-        try { await stockApi.deleteEntry(e.id); loadEntries() }
+        try { await stockApi.deleteEntry(e.id); loadEntries(); loadBalances() }
         catch (err: any) { isForbiddenError(err) ? showError('Access Denied', PERMISSION_DENIED_MSG) : showError('Delete Failed', (err as any).response?.data?.message ?? (err as Error).message) }
       }
     )
@@ -182,6 +195,7 @@ export default function Stock() {
   }
 
   const openCreate = () => {
+    setEditingId(null)
     setForm({ itemType, referenceId: '', quantity: 0, unitPrice: 0, stockDate: today(), notes: '' })
     setRolls([])
     setFabricUnitPrice(0)
@@ -190,14 +204,42 @@ export default function Stock() {
     setShowForm(true)
   }
 
+  const openEdit = (e: StockEntry) => {
+    setEditingId(e.id)
+    setForm({
+      itemType, referenceId: e.referenceId, quantity: e.quantity, unitPrice: e.unitPrice,
+      stockDate: e.stockDate, notes: e.notes ?? '',
+    })
+    if (isFabric) {
+      const existing = (e.rolls ?? []).map(r => ({
+        id: r.id, rollNumber: r.rollNumber, quantityMeters: Number(r.quantityMeters), unitPrice: Number(r.unitPrice),
+      }))
+      setRolls(existing)
+      setFabricUnitPrice(existing[0]?.unitPrice ?? 0)
+      setStartRollNo(existing[0]?.rollNumber ?? 1)
+    } else {
+      setRolls([])
+      setFabricUnitPrice(0)
+      setStartRollNo(1)
+    }
+    setError('')
+    setShowForm(true)
+  }
+
+  const closeForm = () => { setShowForm(false); setEditingId(null) }
+
   const doSave = async () => {
     setSaving(true); setError('')
     try {
       const payload: CreateStockEntryRequest = isFabric
-        ? { ...form, itemType, quantity: 0, unitPrice: 0, rolls: rolls.map(r => ({ ...r, unitPrice: fabricUnitPrice })) }
+        ? {
+            ...form, itemType, quantity: 0, unitPrice: 0,
+            rolls: rolls.map(r => ({ id: r.id, quantityMeters: r.quantityMeters, unitPrice: fabricUnitPrice })),
+          }
         : { ...form, itemType }
-      await stockApi.create(payload)
-      setShowForm(false)
+      if (editingId) await stockApi.update(editingId, payload)
+      else await stockApi.create(payload)
+      closeForm()
       loadBalances()
       if (view === 'entries') loadEntries()
     } catch (e: any) {
@@ -210,7 +252,7 @@ export default function Stock() {
     if (!form.referenceId) { setError('Please select an item'); return }
     if (isFabric) {
       if (rolls.length === 0) { setError('Add at least one roll'); return }
-      if (rolls.some(r => r.quantityMeters <= 0)) { setError('Every roll must have meters > 0'); return }
+      if (rolls.some(r => r.quantityMeters <= 0)) { setError('Every roll must have a quantity greater than 0'); return }
       if (!fabricUnitPrice || fabricUnitPrice <= 0) {
         showWarning('Zero Unit Price', 'Unit price is ₹0. Stock value will not be recorded correctly. Proceed?', doSave)
         return
@@ -220,7 +262,7 @@ export default function Stock() {
       const LARGE_QTY_THRESHOLD = 50000
       if (form.quantity > LARGE_QTY_THRESHOLD) {
         showWarning('Large Quantity Entered',
-          `You entered ${form.quantity.toLocaleString()} pieces. This seems unusually large.`, doSave)
+          `You entered ${form.quantity.toLocaleString()} ${shortUnit(formUnit)}. This seems unusually large.`, doSave)
         return
       }
       if (!form.unitPrice || form.unitPrice <= 0) {
@@ -237,12 +279,15 @@ export default function Stock() {
   const [entriesSearch, setEntriesSearch]   = useState('')   // text search for entries table
 
   // Reset filters whenever item type changes
-  useEffect(() => { setSelectedItemId(''); setSearch(''); setEntriesSearch('') }, [itemType])
+  useEffect(() => {
+    setSelectedItemId(''); setSearch(''); setEntriesSearch('')
+    setShowForm(false); setEditingId(null)
+  }, [itemType])
 
   // ── Filtered data ──────────────────────────────────────────────────────────
   const belowMin = balances.filter(
     b => b.itemType === 'FABRIC' && b.minStockMeters != null && b.balance < b.minStockMeters!
-  ).map(b => ({ name: b.referenceName, balance: b.balance, minStockMeters: b.minStockMeters! }))
+  ).map(b => ({ name: b.referenceName, balance: b.balance, minStockMeters: b.minStockMeters!, unit: shortUnit(unitOf(b.referenceId)) }))
 
   const filteredBalances = balances.filter(b => {
     if (selectedItemId && b.referenceId !== selectedItemId) return false
@@ -315,15 +360,15 @@ export default function Stock() {
       {/* ── Selected-item summary cards ── */}
       {view === 'balance' && selectedItem && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
-          <SummaryCard icon={<TrendingUp size={20} />}   label="Total Received IN"  value={`${selectedItem.totalIn.toLocaleString()} ${unit}`}  color="var(--navy)" />
-          <SummaryCard icon={<TrendingDown size={20} />} label="Total Consumed OUT" value={`${selectedItem.totalOut.toLocaleString()} ${unit}`} color="#b91c1c" />
-          <SummaryCard icon={<Package size={20} />}      label="Current Balance"    value={`${selectedItem.balance.toLocaleString()} ${unit}`}  color="#16a34a" />
+          <SummaryCard icon={<TrendingUp size={20} />}   label="Total Received IN"  value={`${selectedItem.totalIn.toLocaleString()} ${shortUnit(unitOf(selectedItem.referenceId))}`}  color="var(--navy)" />
+          <SummaryCard icon={<TrendingDown size={20} />} label="Total Consumed OUT" value={`${selectedItem.totalOut.toLocaleString()} ${shortUnit(unitOf(selectedItem.referenceId))}`} color="#b91c1c" />
+          <SummaryCard icon={<Package size={20} />}      label="Current Balance"    value={`${selectedItem.balance.toLocaleString()} ${shortUnit(unitOf(selectedItem.referenceId))}`}  color="#16a34a" />
         </div>
       )}
 
       {/* ── CREATE FORM MODAL ── */}
       {showForm && (
-        <Modal title={`Add Opening ${isFabric ? 'Fabric' : 'Accessory'} Stock`} onClose={() => setShowForm(false)}>
+        <Modal title={`${editingId ? 'Edit' : 'Add'} Opening ${isFabric ? 'Fabric' : 'Accessory'} Stock`} onClose={closeForm}>
           <FormError message={error} />
           <div className="form-group">
             <label>{isFabric ? 'Fabric' : 'Accessory'} *</label>
@@ -345,7 +390,7 @@ export default function Stock() {
           {isFabric && form.referenceId && (
             <>
               <div className="form-group">
-                <label>Unit Price ₹ / metre *
+                <label>Unit Price ₹ / {shortUnit(formUnit)} *
                   <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: 6, fontSize: 12 }}>
                     (same for all rolls of this fabric)
                   </span>
@@ -357,7 +402,7 @@ export default function Stock() {
                 />
               </div>
               <div style={{ margin: '12px 0' }}>
-                <RollSubTable rolls={rolls} onChange={setRolls} startRollNumber={startRollNo} />
+                <RollSubTable rolls={rolls} onChange={setRolls} startRollNumber={startRollNo} unitOfMeasure={formUnit} />
               </div>
             </>
           )}
@@ -366,7 +411,7 @@ export default function Stock() {
           {!isFabric && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="form-group">
-                <label>Quantity (pcs) *</label>
+                <label>Quantity ({shortUnit(formUnit)}) *</label>
                 <input type="number" step="1" value={form.quantity || ''}
                   onChange={e => setForm(p => ({ ...p, quantity: Number(e.target.value) }))} />
               </div>
@@ -386,7 +431,7 @@ export default function Stock() {
             <label>Notes</label>
             <textarea rows={2} value={form.notes ?? ''} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
           </div>
-          <FormActions onCancel={() => setShowForm(false)} onSave={save} saving={saving} />
+          <FormActions onCancel={closeForm} onSave={save} saving={saving} />
         </Modal>
       )}
 
@@ -417,6 +462,7 @@ export default function Stock() {
                   const barColor = pct > 50 ? '#16a34a' : pct > 20 ? '#d97706' : '#dc2626'
                   const isBelowMin = isFabric && b.minStockMeters != null && b.balance < b.minStockMeters!
                   const rowBorderColor = isBelowMin ? '#dc2626' : '#16a34a'
+                  const rowUnit = shortUnit(unitOf(b.referenceId))
                   return (
                     <tr key={b.referenceId} style={{ borderLeft: `3px solid ${rowBorderColor}` }}>
                       <td style={{ fontWeight: 600 }}>
@@ -453,10 +499,10 @@ export default function Stock() {
                           {b.rollCount > 0 ? `${b.rollCount} roll${b.rollCount !== 1 ? 's' : ''}` : '—'}
                         </td>
                       )}
-                      <td style={{ textAlign: 'right', color: 'var(--navy)' }}>+{b.totalIn.toLocaleString()} {unit}</td>
-                      <td style={{ textAlign: 'right', color: '#b91c1c' }}>-{b.totalOut.toLocaleString()} {unit}</td>
+                      <td style={{ textAlign: 'right', color: 'var(--navy)' }}>+{b.totalIn.toLocaleString()} {rowUnit}</td>
+                      <td style={{ textAlign: 'right', color: '#b91c1c' }}>-{b.totalOut.toLocaleString()} {rowUnit}</td>
                       <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 15, color: isBelowMin ? '#dc2626' : '#16a34a' }}>
-                        {b.balance.toLocaleString()} {unit}
+                        {b.balance.toLocaleString()} {rowUnit}
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
@@ -495,11 +541,11 @@ export default function Stock() {
                         <th style={{ textAlign: 'right' }}>Total Value</th>
                       </>
                   }
-                  {isFabric && <th style={{ textAlign: 'right' }}>Total Meters</th>}
+                  {isFabric && <th style={{ textAlign: 'right' }}>Total quantity</th>}
                   <SortableTh label="Stock Date" desc={sortEntriesDesc} onToggle={() => setSortEntriesDesc(p => !p)} />
                   <th>Notes</th>
                   <th>Status</th>
-                  <th style={{ width: 40 }}></th>
+                  <th style={{ width: 72 }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -509,25 +555,28 @@ export default function Stock() {
                   <tr key={e.id}>
                     <td style={{ fontWeight: 500 }}>{e.referenceName}</td>
                     {isFabric
-                      ? <td><RollBadgeList rolls={e.rolls ?? []} /></td>
+                      ? <td><RollBadgeList rolls={e.rolls ?? []} unitOfMeasure={unitOf(e.referenceId)} /></td>
                       : <>
-                          <td style={{ textAlign: 'right' }}>{e.quantity} pcs</td>
+                          <td style={{ textAlign: 'right' }}>{e.quantity} {shortUnit(unitOf(e.referenceId))}</td>
                           <td style={{ textAlign: 'right' }}>₹{e.unitPrice.toFixed(2)}</td>
                           <td style={{ textAlign: 'right', fontWeight: 600 }}>₹{e.totalValue.toFixed(2)}</td>
                         </>
                     }
                     {isFabric && (
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                        {e.quantity.toFixed(2)} m
+                        {e.quantity.toFixed(2)} {shortUnit(unitOf(e.referenceId))}
                       </td>
                     )}
                     <td>{e.stockDate}</td>
                     <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{e.notes ?? '—'}</td>
                     <td><span className={`badge ${statusBadge(e.status)}`}>{e.status}</span></td>
                     <td style={{ textAlign: 'center' }}>
-                      <button className="btn-icon" title="Delete entry" style={{ color: '#dc2626' }} onClick={evt => deleteStockEntry(e, evt)}>
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="flex gap-2" style={{ justifyContent: 'center' }}>
+                        <button className="btn-icon" title="Edit" onClick={() => openEdit(e)}><Pencil size={14} /></button>
+                        <button className="btn-icon" title="Delete entry" style={{ color: '#dc2626' }} onClick={evt => deleteStockEntry(e, evt)}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

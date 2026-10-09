@@ -7,6 +7,7 @@ import { BackButton, InfoRow, DocStat, StatsStrip, StatDivider, statusBadge } fr
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 import { printPurchaseOrder } from '../utils/printPurchaseOrder'
+import { sharedUnitSuffix, shortUnit } from '../utils/units'
 
 const SIGN_ROLES = [
   { role: 'PREPARED_BY',   label: 'Prepared by',   requiredStatus: 'DRAFT'     },
@@ -91,10 +92,7 @@ export default function PurchaseOrderDetail() {
   const isAccessory = po.poKind === 'ACCESSORY'
   const listPath = isAccessory ? '/accessory-purchase-orders' : '/purchase-orders'
   const totalOrdered = po.items.reduce((s, i) => s + i.orderedQuantity, 0)
-  const uoms = [...new Set(po.items.map(i => i.unitOfMeasure))]
-  const qtySuffix = isAccessory
-    ? (uoms.length === 1 ? ` ${uoms[0]}` : '')
-    : ' m'
+  const qtySuffix = sharedUnitSuffix(po.items.map(i => i.unitOfMeasure))
 
   return (
     <div className="page">
@@ -242,7 +240,7 @@ export default function PurchaseOrderDetail() {
                 <th style={{ textAlign: 'right' }}>Width</th>
                 <th style={{ textAlign: 'right' }}>GSM</th>
                 <th>UoM</th>
-                <th style={{ textAlign: 'right' }}>Meters (ordered)</th>
+                <th style={{ textAlign: 'right' }}>Qty ordered</th>
                 <th style={{ textAlign: 'right' }}>Received Qty</th>
                 <th style={{ textAlign: 'right' }}>Unit Price</th>
                 <th>Status</th>
@@ -259,7 +257,7 @@ export default function PurchaseOrderDetail() {
                   <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{item.accessoryName}</div>
                 </td>
                 <td>{item.unitOfMeasure}</td>
-                <td style={{ textAlign: 'right' }}>{item.orderedQuantity.toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{item.orderedQuantity.toLocaleString()} {shortUnit(item.unitOfMeasure)}</td>
                 <td style={{ textAlign: 'right' }}>₹{item.unitPrice.toFixed(2)}</td>
                 <td><span className={`badge ${statusBadge(item.status)}`}>{item.status.replace(/_/g, ' ')}</span></td>
               </tr>
@@ -275,9 +273,9 @@ export default function PurchaseOrderDetail() {
                 <td style={{ textAlign: 'right' }}>{item.widthInches != null ? `${item.widthInches}"` : '—'}</td>
                 <td style={{ textAlign: 'right' }}>{item.weightGsm != null ? item.weightGsm : '—'}</td>
                 <td>{item.unitOfMeasure}</td>
-                <td style={{ textAlign: 'right' }}>{item.orderedQuantity.toLocaleString()} m</td>
+                <td style={{ textAlign: 'right' }}>{item.orderedQuantity.toLocaleString()} {shortUnit(item.unitOfMeasure)}</td>
                 <td style={{ textAlign: 'right', color: item.receivedQuantity > 0 ? 'var(--navy)' : 'var(--text-muted)' }}>
-                  {item.receivedQuantity.toLocaleString()}
+                  {item.receivedQuantity.toLocaleString()} {shortUnit(item.unitOfMeasure)}
                 </td>
                 <td style={{ textAlign: 'right' }}>₹{item.unitPrice.toFixed(2)}</td>
                 <td><span className={`badge ${statusBadge(item.status)}`}>{item.status.replace(/_/g, ' ')}</span></td>

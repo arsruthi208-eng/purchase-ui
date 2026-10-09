@@ -7,18 +7,21 @@ import { purchaseOrdersApi, type PoSummary } from '../api/purchaseOrders'
 import { useApiList } from '../hooks/useApiData'
 import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
+import { fabricsApi } from '../api/fabrics'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
+import { shortUnit, unitWord, sharedUnitSuffix } from '../utils/units'
 
 /** Per-fabric-line form state including rolls */
 interface LineState {
   fabricId: string
-  fabricLabel: string      // locked display name from PO item
-  orderedMeters: number    // meters ordered in the PO for this fabric
+  fabricLabel: string
+  orderedMeters: number
+  unitOfMeasure: string
   rolls: RollEntry[]
   startRollNo: number
 }
 
-const emptyLine = (): LineState => ({ fabricId: '', fabricLabel: '', orderedMeters: 0, rolls: [], startRollNo: 1 })
+const emptyLine = (): LineState => ({ fabricId: '', fabricLabel: '', orderedMeters: 0, unitOfMeasure: 'METER', rolls: [], startRollNo: 1 })
 
 export default function Grn() {
   const navigate = useNavigate()
@@ -70,15 +73,17 @@ export default function Grn() {
     setLoadingPo(true)
     try {
       const detail = await purchaseOrdersApi.getById(id)
-      // Build one line per PO fabric item with roll-number pre-fetched
+      const fabrics = await fabricsApi.list().catch(() => [])
       const newLines = await Promise.all(
         detail.items.map(async item => {
           let startRollNo = 1
           try { startRollNo = await fabricRollsApi.nextRollNumber(item.fabricId ?? '') } catch { /* ignore */ }
+          const fab = fabrics.find(f => f.id === item.fabricId)
           return {
             fabricId: item.fabricId ?? '',
             fabricLabel: `${item.fabricCode} — ${item.fabricName}`,
             orderedMeters: item.orderedQuantity,
+            unitOfMeasure: fab?.unitOfMeasure ?? item.unitOfMeasure ?? 'METER',
             rolls: [],
             startRollNo,
           } satisfies LineState
@@ -108,7 +113,7 @@ export default function Grn() {
     if (!poId || !receivedDate) { setError('PO and received date are required'); return }
     if (lines.some(l => !l.fabricId)) { setError('Each line needs a fabric selected'); return }
     if (lines.some(l => l.rolls.length === 0)) { setError('Each line needs at least one roll'); return }
-    if (lines.some(l => l.rolls.some(r => r.quantityMeters <= 0))) { setError('Every roll must have meters > 0'); return }
+    if (lines.some(l => l.rolls.some(r => r.quantityMeters <= 0))) { setError('Every roll must have a quantity greater than 0'); return }
 
     const payload: CreateGrnRequest = {
       poId,
@@ -218,8 +223,8 @@ export default function Grn() {
                 fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em',
               }}>
                 <div>Fabric</div>
-                <div style={{ textAlign: 'right' }}>Ordered (m)</div>
-                <div style={{ textAlign: 'right' }}>Received (m)</div>
+                <div style={{ textAlign: 'right' }}>Ordered</div>
+                <div style={{ textAlign: 'right' }}>Received</div>
                 <div style={{ textAlign: 'center' }}>Rolls</div>
               </div>
 
@@ -227,6 +232,7 @@ export default function Grn() {
                 const receivedTotal = line.rolls.reduce((s, r) => s + r.quantityMeters, 0)
                 const diff = receivedTotal - line.orderedMeters
                 const diffColor = diff > 0 ? '#16a34a' : diff < 0 ? '#dc2626' : '#6b7280'
+                const unit = shortUnit(line.unitOfMeasure)
 
                 return (
                   <div key={idx} style={{ borderTop: idx === 0 ? 'none' : '1px solid var(--border)' }}>
@@ -239,15 +245,15 @@ export default function Grn() {
                         {line.fabricLabel || line.fabricId}
                       </div>
                       <div style={{ textAlign: 'right', fontSize: 13, color: 'var(--text-muted)' }}>
-                        {line.orderedMeters > 0 ? `${line.orderedMeters.toFixed(2)} m` : '—'}
+                        {line.orderedMeters > 0 ? `${line.orderedMeters.toFixed(2)} ${unit}` : '—'}
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <span style={{ fontSize: 13, fontWeight: 600 }}>
-                          {receivedTotal > 0 ? `${receivedTotal.toFixed(2)} m` : <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>0 m</span>}
+                          {receivedTotal > 0 ? `${receivedTotal.toFixed(2)} ${unit}` : <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>0 {unit}</span>}
                         </span>
                         {receivedTotal > 0 && line.orderedMeters > 0 && (
                           <div style={{ fontSize: 11, color: diffColor, marginTop: 1 }}>
-                            {diff >= 0 ? '+' : ''}{diff.toFixed(2)} m vs ordered
+                            {diff >= 0 ? '+' : ''}{diff.toFixed(2)} {unit} vs ordered
                           </div>
                         )}
                       </div>
@@ -270,7 +276,7 @@ export default function Grn() {
                           <thead>
                             <tr>
                               <th style={{ padding: '4px 8px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, width: 80 }}>Roll #</th>
-                              <th style={{ padding: '4px 8px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600 }}>Meters on label</th>
+                              <th style={{ padding: '4px 8px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600 }}>{unitWord(line.unitOfMeasure)} on label</th>
                               <th style={{ width: 32 }} />
                             </tr>
                           </thead>
@@ -293,7 +299,7 @@ export default function Grn() {
                                     onChange={e => updateRollMeters(idx, ri, Number(e.target.value))}
                                     style={{ width: 140, padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13 }}
                                   />
-                                  <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--text-muted)' }}>m</span>
+                                  <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--text-muted)' }}>{unit}</span>
                                 </td>
                                 <td style={{ padding: '3px 4px' }}>
                                   <button type="button" onClick={() => removeRoll(idx, ri)}
@@ -326,6 +332,7 @@ export default function Grn() {
               {lines.length > 0 && (() => {
                 const totalOrdered  = lines.reduce((s, l) => s + l.orderedMeters, 0)
                 const totalReceived = lines.reduce((s, l) => s + l.rolls.reduce((sr, r) => sr + r.quantityMeters, 0), 0)
+                const totalSuffix = sharedUnitSuffix(lines.map(l => l.unitOfMeasure))
                 return (
                   <div style={{
                     display: 'grid', gridTemplateColumns: '1fr 130px 160px 90px',
@@ -334,8 +341,8 @@ export default function Grn() {
                     fontSize: 12, fontWeight: 700,
                   }}>
                     <div style={{ color: 'var(--text-muted)' }}>TOTAL</div>
-                    <div style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{totalOrdered.toFixed(2)} m</div>
-                    <div style={{ textAlign: 'right', color: 'var(--navy)' }}>{totalReceived.toFixed(2)} m</div>
+                    <div style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{totalOrdered.toFixed(2)}{totalSuffix}</div>
+                    <div style={{ textAlign: 'right', color: 'var(--navy)' }}>{totalReceived.toFixed(2)}{totalSuffix}</div>
                     <div />
                   </div>
                 )

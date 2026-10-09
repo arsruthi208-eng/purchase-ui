@@ -2,6 +2,8 @@ interface BelowMinItem {
   name: string
   balance: number
   minStockMeters: number
+  /** Short label such as "m" or "kg". */
+  unit: string
 }
 
 interface Props {
@@ -25,9 +27,9 @@ export function StockAlertBanner({ items }: Props) {
         {items.map(i => (
           <li key={i.name} style={{ marginBottom: 2 }}>
             <b>{i.name}</b>
-            {' — '}Current: <b>{i.balance.toLocaleString()} m</b>
-            {' | '}Minimum: {i.minStockMeters.toLocaleString()} m
-            {' | '}Short by: <b style={{ color: '#dc2626' }}>{(i.minStockMeters - i.balance).toLocaleString()} m</b>
+            {' — '}Current: <b>{i.balance.toLocaleString()} {i.unit}</b>
+            {' | '}Minimum: {i.minStockMeters.toLocaleString()} {i.unit}
+            {' | '}Short by: <b style={{ color: '#dc2626' }}>{(i.minStockMeters - i.balance).toLocaleString()} {i.unit}</b>
           </li>
         ))}
       </ul>

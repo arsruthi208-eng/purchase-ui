@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { FileText } from '../icons'
 import { grnApi, type GrnDetail as GrnDetailType } from '../api/grn'
-import { useApiData } from '../hooks/useApiData'
+import { fabricsApi } from '../api/fabrics'
+import { accessoriesApi } from '../api/accessories'
+import { useApiData, useApiList } from '../hooks/useApiData'
 import { BackButton, InfoRow, DocStat, StatsStrip, StatDivider, statusBadge } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
+import { shortUnit, sharedUnitSuffix } from '../utils/units'
 
 export default function GrnDetail() {
   const { id } = useParams<{ id: string }>()
@@ -14,6 +17,8 @@ export default function GrnDetail() {
     () => id ? grnApi.getById(id) : Promise.resolve(null as GrnDetailType | null),
     [id]
   )
+  const { data: fabrics } = useApiList(() => fabricsApi.list())
+  const { data: accessories } = useApiList(() => accessoriesApi.list())
   const [actionBusy, setActionBusy] = useState(false)
   const { dialog, showError, showConfirm } = useAlertDialog()
 
@@ -32,8 +37,13 @@ export default function GrnDetail() {
     </div>
   )
 
+  const unitOfCode = (code: string) =>
+    fabrics.find(f => f.fabricCode === code)?.unitOfMeasure
+    ?? accessories.find(a => a.accessoryCode === code)?.unitOfMeasure
+    ?? 'METER'
   const totalReceived = grn.items.reduce((s, i) => s + i.receivedQuantity, 0)
   const totalValue    = grn.items.reduce((s, i) => s + i.receivedQuantity * i.unitPrice, 0)
+  const totalSuffix = sharedUnitSuffix(grn.items.map(i => unitOfCode(i.fabricCode)))
 
   return (
     <div className="page">
@@ -73,7 +83,7 @@ export default function GrnDetail() {
         <StatsStrip>
           <DocStat label="Items"              value={grn.items.length.toString()} />
           <StatDivider />
-          <DocStat label="Total Qty Received" value={`${totalReceived.toLocaleString()} m`} />
+          <DocStat label="Total Qty Received" value={`${totalReceived.toLocaleString()}${totalSuffix}`} />
           <StatDivider />
           <DocStat label="Total Value"        value={`₹${totalValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} />
         </StatsStrip>
@@ -88,6 +98,7 @@ export default function GrnDetail() {
 
         {grn.items.map((item, idx) => {
           const rollTotal = item.rolls?.reduce((s, r) => s + Number(r.quantityMeters), 0) ?? 0
+          const unit = shortUnit(unitOfCode(item.fabricCode))
           return (
             <div key={item.id} style={{ borderTop: idx === 0 ? '1px solid var(--border)' : '2px solid var(--border)' }}>
 
@@ -115,7 +126,7 @@ export default function GrnDetail() {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--navy)' }}>
-                    {Number(item.receivedQuantity).toFixed(2)} m
+                    {Number(item.receivedQuantity).toFixed(2)} {unit}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
                     {item.rolls?.length ?? 0} roll{(item.rolls?.length ?? 0) !== 1 ? 's' : ''}
@@ -135,7 +146,7 @@ export default function GrnDetail() {
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)', background: '#f8fafc' }}>
                         <th style={{ padding: '9px 20px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Roll No</th>
-                        <th style={{ padding: '9px 20px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Meters per Roll</th>
+                        <th style={{ padding: '9px 20px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Qty per roll</th>
                         <th style={{ padding: '9px 20px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
                       </tr>
                     </thead>
@@ -148,7 +159,7 @@ export default function GrnDetail() {
                               {r.rollNumber}
                             </td>
                             <td style={{ padding: '11px 20px', fontSize: 14, fontWeight: 600, color: '#111' }}>
-                              {Number(r.quantityMeters).toFixed(2)}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>m</span>
+                              {Number(r.quantityMeters).toFixed(2)}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>{unit}</span>
                             </td>
                             <td style={{ padding: '11px 20px' }}>
                               <span style={{
@@ -167,7 +178,7 @@ export default function GrnDetail() {
                       <tr style={{ background: '#f8fafc', borderTop: '2px solid var(--border)' }}>
                         <td style={{ padding: '9px 20px', fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total</td>
                         <td style={{ padding: '9px 20px', fontWeight: 700, fontSize: 14, color: 'var(--navy)' }}>
-                          {rollTotal.toFixed(2)}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>m</span>
+                          {rollTotal.toFixed(2)}<span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>{unit}</span>
                         </td>
                         <td />
                       </tr>

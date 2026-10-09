@@ -6,6 +6,7 @@ import { useApiData } from '../hooks/useApiData'
 import { BackButton, InfoRow, DocStat, StatsStrip, StatDivider, statusBadge } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
+import { shortUnit, sharedUnitSuffix } from '../utils/units'
 
 export default function AccessoryDcDetail() {
   const { id } = useParams<{ id: string }>()
@@ -45,6 +46,7 @@ export default function AccessoryDcDetail() {
   if (!doc) return <div className="page"><div className="empty-state">Not found</div></div>
 
   const totalQty = doc.items.reduce((s, i) => s + i.quantity, 0)
+  const totalSuffix = sharedUnitSuffix(doc.items.map(i => i.unitOfMeasure))
 
   return (
     <div className="page">
@@ -86,7 +88,7 @@ export default function AccessoryDcDetail() {
         <StatsStrip>
           <DocStat label="Lines"           value={doc.items.length.toString()} />
           <StatDivider />
-          <DocStat label="Total Quantity"  value={totalQty.toLocaleString()} />
+          <DocStat label="Total Quantity"  value={`${totalQty.toLocaleString()}${totalSuffix}`} />
         </StatsStrip>
       </div>
 
@@ -107,7 +109,7 @@ export default function AccessoryDcDetail() {
               <tr key={it.id}>
                 <td>{it.accessoryName}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                  {editing ? <input type="number" min="0" value={editQtys[it.id] ?? Number(it.quantity)} onChange={e => setEditQtys(q => ({ ...q, [it.id]: Number(e.target.value) }))} style={{ width: 80, textAlign: 'right', padding: '3px 6px', border: '1px solid var(--border)', borderRadius: 4 }} /> : it.quantity.toLocaleString()}
+                  {editing ? <input type="number" min="0" value={editQtys[it.id] ?? Number(it.quantity)} onChange={e => setEditQtys(q => ({ ...q, [it.id]: Number(e.target.value) }))} style={{ width: 80, textAlign: 'right', padding: '3px 6px', border: '1px solid var(--border)', borderRadius: 4 }} /> : `${it.quantity.toLocaleString()} ${shortUnit(it.unitOfMeasure)}`}
                 </td>
                 <td>{it.unitOfMeasure}</td>
               </tr>

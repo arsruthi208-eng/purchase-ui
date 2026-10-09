@@ -11,6 +11,7 @@ import { useApiList } from '../hooks/useApiData'
 import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
+import { shortUnit } from '../utils/units'
 
 const ALL_STATUSES = ['DRAFT', 'OPEN', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED']
 
@@ -195,6 +196,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
         }
         if ('fabricId' in patch) {
           const fab = fabrics.find(f => f.id === updated.fabricId)
+          if (fab) updated.unitOfMeasure = fab.unitOfMeasure
           updated.weightGsm = fab?.weightGsm
           updated.widthInches = fab?.widthInches
           if (p.schoolOrderId) {
@@ -323,7 +325,11 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                       const so = schoolOrders.find(s => s.id === newSoId)
                       const fab = fabrics.find(f => f.id === line.fabricId)
                       if (so && fab && fab.composition > 0) {
-                        return { ...line, orderedQuantity: parseFloat((so.totalQuantity * fab.composition).toFixed(2)) }
+                        return {
+                          ...line,
+                          unitOfMeasure: fab.unitOfMeasure,
+                          orderedQuantity: parseFloat((so.totalQuantity * fab.composition).toFixed(2)),
+                        }
                       }
                       return line
                     }),
@@ -458,7 +464,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
               <span>Fabric</span>
               <span>Colour / Shade</span>
               <span>UOM</span>
-              <span>Meters</span>
+              <span>Quantity</span>
               <span>Price</span>
               <span>GSM</span>
               <span>Width</span>
@@ -468,7 +474,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
               const selectedFab = fabrics.find(f => f.id === line.fabricId)
               const selectedSo  = schoolOrders.find(s => s.id === form.schoolOrderId)
               const autoCalcHint = selectedFab && selectedSo && selectedFab.composition > 0
-                ? `${selectedSo.totalQuantity} qty × ${selectedFab.composition} = ${parseFloat((selectedSo.totalQuantity * selectedFab.composition).toFixed(2))} m`
+                ? `${selectedSo.totalQuantity} qty × ${selectedFab.composition} = ${parseFloat((selectedSo.totalQuantity * selectedFab.composition).toFixed(2))} ${shortUnit(selectedFab.unitOfMeasure)}`
                 : null
               return (
                 <div key={idx} style={{ marginBottom: 10 }}>
@@ -491,7 +497,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                     </select>
                     <input
                       type="number"
-                      placeholder="Meters *"
+                      placeholder={`Qty (${shortUnit(line.unitOfMeasure)}) *`}
                       value={line.orderedQuantity || ''}
                       onChange={e => updateLine(idx, { orderedQuantity: Number(e.target.value) })}
                       style={{ borderColor: autoCalcHint ? 'var(--navy)' : undefined }}

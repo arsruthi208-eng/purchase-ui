@@ -167,7 +167,7 @@ export default function Styles() {
             )}
           </div>
           <div className="form-group">
-            <label>Fabric Consumption Rate <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(metres per piece)</span></label>
+            <label>Fabric consumption rate <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(per piece)</span></label>
             <input
               type="number"
               step="0.1"
@@ -315,7 +315,7 @@ export default function Styles() {
                 <th>Code</th>
                 <th>Style Name</th>
                 <th>Pattern</th>
-                <th style={{ textAlign: 'right' }}>m/piece</th>
+                <th style={{ textAlign: 'right' }}>per piece</th>
                 <th>Schools</th>
                 <th>Status</th>
                 <th style={{ width: 80 }}></th>
@@ -330,7 +330,7 @@ export default function Styles() {
                   <td style={{ fontWeight: 500 }}>{s.styleName}</td>
                   <td><span className="badge badge-info">{s.pattern}</span></td>
                   <td style={{ textAlign: 'right', fontWeight: 500, color: s.fabricConsumptionRate ? 'var(--navy)' : 'var(--text-muted)' }}>
-                    {s.fabricConsumptionRate != null ? `${s.fabricConsumptionRate} m` : '—'}
+                    {s.fabricConsumptionRate != null ? s.fabricConsumptionRate : '—'}
                   </td>
                   <td>
                     <SchoolTags names={s.schoolNames ?? []} />

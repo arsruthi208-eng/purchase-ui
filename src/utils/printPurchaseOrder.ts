@@ -1,5 +1,6 @@
 import type { PoDetail } from '../api/purchaseOrders'
 import logoSrc from '../assets/apple-uniformm-logo.png'
+import { shortUnit, sharedUnitSuffix } from './units'
 
 const COMPANY_GST = '33AAGCA5247H1Z6'
 const COMPANY_ADDRESS =
@@ -85,15 +86,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
 
   const fmtN = (n: number) => n.toLocaleString('en-IN')
 
-  const qtyLabel = (uom: string) => {
-    if (isAcc) return uom
-    return uom === 'KG' ? 'kg' : 'mtrs'
-  }
-
-  const uoms = [...new Set(po.items.map(i => i.unitOfMeasure))]
-  const totalQtyText = isAcc
-    ? `${fmtN(totalOrdered)}${uoms.length === 1 ? ` ${uoms[0]}` : ''}`
-    : `${fmtN(totalOrdered)} mtrs`
+  const totalQtyText = `${fmtN(totalOrdered)}${sharedUnitSuffix(po.items.map(i => i.unitOfMeasure))}`
 
   const itemRows = isAcc
     ? po.items.map((item, idx) => `
@@ -105,7 +98,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
         <div class="sku">${dash(item.accessoryCode)}</div>
       </td>
       <td style="text-align:center">${dash(item.unitOfMeasure)}</td>
-      <td style="text-align:right">${fmtN(item.orderedQuantity)} ${qtyLabel(item.unitOfMeasure)}</td>
+      <td style="text-align:right">${fmtN(item.orderedQuantity)} ${shortUnit(item.unitOfMeasure)}</td>
       <td style="text-align:right">₹${item.unitPrice.toFixed(2)}</td>
     </tr>
   `).join('')
@@ -117,7 +110,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
       <td>${dash(item.colourName)}</td>
       <td style="text-align:center">${item.widthInches != null ? item.widthInches : '—'}</td>
       <td style="text-align:center">${item.weightGsm != null ? item.weightGsm : '—'}</td>
-      <td style="text-align:right">${fmtN(item.orderedQuantity)} ${qtyLabel(item.unitOfMeasure)}</td>
+      <td style="text-align:right">${fmtN(item.orderedQuantity)} ${shortUnit(item.unitOfMeasure)}</td>
       <td style="text-align:right">₹${item.unitPrice.toFixed(2)}</td>
     </tr>
   `).join('')
@@ -156,7 +149,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
         <th style="width:78px">Width (inch)</th>
         <th style="width:56px">GSM</th>
         <th>Quantity</th>
-        <th>Unit Price (₹ / metre)</th>
+        <th>Unit Price (₹)</th>
       </tr>
     </thead>
     <tbody>

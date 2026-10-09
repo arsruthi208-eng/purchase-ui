@@ -6,6 +6,7 @@ import { purchasePartiesApi, type PurchaseParty } from '../api/purchaseParties'
 import { Modal, FormError, FormActions, statusBadge, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
+import { shortUnit } from '../utils/units'
 
 type FabricForm = Omit<Fabric, 'id' | 'status' | 'fabricCode' | 'schoolNames' | 'partyNames'> & {
   schoolIds: string[]
@@ -243,7 +244,7 @@ export default function Fabrics() {
             </select>
           </div>
           <div className="form-group">
-            <label>Composition (m/unit) *</label>
+            <label>Composition ({shortUnit(form.unitOfMeasure)}/unit) *</label>
             <input
               type="number"
               step="0.01"
@@ -277,7 +278,7 @@ export default function Fabrics() {
             />
           </div>
           <div className="form-group">
-            <label>Min Stock (meters) <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>— low-stock warning threshold</span></label>
+            <label>Min stock ({shortUnit(form.unitOfMeasure)}) <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>— low-stock warning threshold</span></label>
             <input
               type="number"
               step="0.5"

@@ -13,6 +13,7 @@ import { useApiList } from '../hooks/useApiData'
 import { Modal, FormError, FormActions, AlertDialog, type StockShortfall, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
+import { shortUnit } from '../utils/units'
 
 /** Extended line state that also tracks roll selection */
 interface LineState {
@@ -39,12 +40,15 @@ function RollPicker({
   selectedIds,
   onToggle,
   requiredMeters,
+  unitOfMeasure,
 }: {
   rolls: FabricRoll[]
   selectedIds: string[]
   onToggle: (id: string) => void
   requiredMeters?: number
+  unitOfMeasure: string
 }) {
+  const unit = shortUnit(unitOfMeasure)
   const availableRolls = rolls.filter(r => r.status === 'AVAILABLE')
   const reservedRolls  = rolls.filter(r => r.status === 'IN_USE')
 
@@ -68,11 +72,11 @@ function RollPicker({
           borderRadius: 6, border: `1px solid ${selectedMeters >= requiredMeters ? '#86efac' : '#fde047'}`,
         }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: '#92400e' }}>
-            Required: <strong style={{ fontSize: 13, color: '#78350f' }}>{requiredMeters.toFixed(2)} m</strong>
+            Required: <strong style={{ fontSize: 13, color: '#78350f' }}>{requiredMeters.toFixed(2)} {unit}</strong>
           </span>
           <span style={{ fontSize: 11, fontWeight: 700, color: selectedMeters >= requiredMeters ? '#15803d' : '#b45309' }}>
-            Selected: {selectedMeters.toFixed(2)} m
-            {shortage > 0 && <span style={{ color: '#dc2626', marginLeft: 6 }}>({shortage.toFixed(2)} m short)</span>}
+            Selected: {selectedMeters.toFixed(2)} {unit}
+            {shortage > 0 && <span style={{ color: '#dc2626', marginLeft: 6 }}>({shortage.toFixed(2)} {unit} short)</span>}
             {shortage <= 0 && selectedMeters > 0 && <span style={{ color: '#15803d', marginLeft: 6 }}>✓</span>}
           </span>
         </div>
@@ -86,7 +90,7 @@ function RollPicker({
           background: '#fef3c7', borderRadius: 6, border: '1px solid #fde68a',
           fontSize: 11, color: '#92400e',
         }}>
-          <span style={{ fontWeight: 700 }}>⚠ {reservedRolls.length} roll{reservedRolls.length !== 1 ? 's' : ''} ({reservedMeters.toFixed(2)} m) reserved in a Draft DC</span>
+          <span style={{ fontWeight: 700 }}>⚠ {reservedRolls.length} roll{reservedRolls.length !== 1 ? 's' : ''} ({reservedMeters.toFixed(2)} {unit}) reserved in a Draft DC</span>
           <span style={{ color: '#b45309' }}>— shown below in grey, not selectable</span>
         </div>
       )}
@@ -102,7 +106,7 @@ function RollPicker({
           Tap a roll to select / deselect &nbsp;·&nbsp; {availableRolls.length} available
         </span>
         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy)' }}>
-          {selectedIds.length} selected &nbsp;=&nbsp; {selectedMeters.toFixed(2)} m
+          {selectedIds.length} selected &nbsp;=&nbsp; {selectedMeters.toFixed(2)} {unit}
         </span>
       </div>
 
@@ -130,7 +134,7 @@ function RollPicker({
                 ROLL NO: {r.rollNumber}
               </span>
               <span style={{ fontSize: 14, marginTop: 3, opacity: 0.85 }}>
-                {r.quantityMeters.toFixed(2)} m
+                {r.quantityMeters.toFixed(2)} {unit}
               </span>
             </button>
           )
@@ -156,7 +160,7 @@ function RollPicker({
               ROLL #{r.rollNumber}
             </span>
             <span style={{ fontSize: 13, marginTop: 3 }}>
-              {r.quantityMeters.toFixed(2)} m
+              {r.quantityMeters.toFixed(2)} {unit}
             </span>
           </div>
         ))}
@@ -331,7 +335,8 @@ export default function Cutting() {
       const shortfalls: StockShortfall[] = Object.entries(required)
         .filter(([id, { qty }]) => (balanceMap[id] ?? 0) < qty)
         .map(([id, { qty, name }]) => ({
-          name, required: qty, available: balanceMap[id] ?? 0, shortfall: qty - (balanceMap[id] ?? 0), unit: 'm',
+          name, required: qty, available: balanceMap[id] ?? 0, shortfall: qty - (balanceMap[id] ?? 0),
+          unit: shortUnit(fabrics.find(f => f.id === id)?.unitOfMeasure ?? 'METER'),
         }))
       if (shortfalls.length > 0) { setStockDialog(shortfalls); return }
 
@@ -344,7 +349,8 @@ export default function Cutting() {
       }).map(([id, { name }]) => {
         const fab = fabrics.find(f => f.id === id)
         const remaining = (balanceMap[id] ?? 0) - (required[id]?.qty ?? 0)
-        return `${name} (will have ${remaining.toLocaleString()} m, min is ${fab!.minStockMeters!.toLocaleString()} m)`
+        const unit = shortUnit(fab?.unitOfMeasure ?? 'METER')
+        return `${name} (will have ${remaining.toLocaleString()} ${unit}, min is ${fab!.minStockMeters!.toLocaleString()} ${unit})`
       })
       if (belowMin.length > 0) {
         showAlertWarning(
@@ -524,9 +530,10 @@ export default function Cutting() {
                   const requiredMeters = rate && line.quantity > 0
                     ? Math.round(line.quantity * rate * 100) / 100
                     : undefined
+                  const lineUnit = fabrics.find(f => f.id === line.fabricId)?.unitOfMeasure ?? 'METER'
+                  const unit = shortUnit(lineUnit)
                   return (
                     <div>
-                      {/* Always show required meters when rate is known */}
                       {requiredMeters != null && line.availableRolls.length > 0 && (
                         <div style={{
                           fontSize: 12, marginBottom: 6, padding: '4px 10px',
@@ -534,8 +541,8 @@ export default function Cutting() {
                           display: 'flex', alignItems: 'center', gap: 6,
                         }}>
                           <span style={{ color: '#15803d', fontWeight: 700 }}>📐 Required fabric:</span>
-                          <strong style={{ fontSize: 14, color: '#166534' }}>{requiredMeters.toFixed(2)} m</strong>
-                          <span style={{ color: '#6b7280', fontSize: 11 }}>({rate} m/pc × {line.quantity} pcs)</span>
+                          <strong style={{ fontSize: 14, color: '#166534' }}>{requiredMeters.toFixed(2)} {unit}</strong>
+                          <span style={{ color: '#6b7280', fontSize: 11 }}>({rate} {unit}/pc × {line.quantity} pcs)</span>
                         </div>
                       )}
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
@@ -546,15 +553,16 @@ export default function Cutting() {
                         selectedIds={line.selectedRollIds}
                         onToggle={rollId => toggleRoll(idx, rollId)}
                         requiredMeters={requiredMeters}
+                        unitOfMeasure={lineUnit}
                       />
                       <div style={{ marginTop: 6, fontSize: 12 }}>
                         <span style={{ color: 'var(--text-muted)' }}>Fabric consumed: </span>
                         <strong style={{ color: line.fabricConsumed > 0 ? 'var(--navy)' : '#dc2626' }}>
-                          {line.fabricConsumed.toFixed(2)} m
+                          {line.fabricConsumed.toFixed(2)} {unit}
                         </strong>
                         {line.availableRolls.length === 0 && rate && line.selectedRollIds.length === 0 && (
                           <span style={{ color: '#92400e', fontSize: 11, marginLeft: 8, background: '#fef3c7', padding: '1px 6px', borderRadius: 4 }}>
-                            auto from rate: {rate} m/pc × {line.quantity}
+                            auto from rate: {rate} {unit}/pc × {line.quantity}
                           </span>
                         )}
                         {line.selectedRollIds.length > 0 && (
@@ -566,13 +574,13 @@ export default function Cutting() {
                       {line.fabricId && line.availableRolls.length === 0 && !rate && (
                         <div style={{ marginTop: 6 }}>
                           <label style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>
-                            No rolls & no rate — enter meters manually:
+                            No rolls and no rate — enter quantity manually:
                           </label>
                           <input
                             type="number"
                             step="0.01"
                             min="0.01"
-                            placeholder="Fabric consumed (m)"
+                            placeholder={`Fabric consumed (${unit})`}
                             value={line.fabricConsumed || ''}
                             onChange={e => updateLine(idx, { fabricConsumed: Number(e.target.value) })}
                             style={{ marginTop: 4, width: 160, fontSize: 13 }}

@@ -4,6 +4,8 @@ import type { StitchingDc } from '../api/stitchingDc'
 import type { IroningDc } from '../api/ironingDc'
 import type { CheckingDc } from '../api/checkingDc'
 import type { UnitDc, AccessoryDc } from '../api/unitDc'
+import { fabricsApi } from '../api/fabrics'
+import { shortUnit, sharedUnitSuffix } from './units'
 
 const COMPANY_TAGLINE = 'Manufacturer of SCHOOL, COLLEGE, SPORTS &amp; INDUSTRIAL UNIFORMS.'
 const COMPANY_ADDRESS = '3/190, Mettupalayam road, Negamam, Sathyamangalam'
@@ -174,6 +176,9 @@ function statHtml(label: string, value: string): string {
 
 export async function printCuttingDc(doc: CuttingOrder): Promise<void> {
   const logo = await getLogoDataUrl()
+  const fabrics = await fabricsApi.list().catch(() => [])
+  const unitOf = (fabricId: string) => fabrics.find(f => f.id === fabricId)?.unitOfMeasure ?? 'METER'
+  const fabricSuffix = sharedUnitSuffix(doc.items.map(i => unitOf(i.fabricId)))
   const totalQty    = doc.items.reduce((s, i) => s + i.quantity, 0)
   const totalFabric = doc.items.reduce((s, i) => s + i.fabricConsumed, 0)
 
@@ -184,7 +189,7 @@ export async function printCuttingDc(doc: CuttingOrder): Promise<void> {
         <th class="ctr" style="width:32px">#</th>
         <th>Style</th><th>Fabric</th><th>Colour</th>
         <th class="ctr">Gender</th><th class="ctr">Std</th>
-        <th class="num">Qty (pcs)</th><th class="num">Fabric Used (m)</th>
+        <th class="num">Qty (pcs)</th><th class="num">Fabric used</th>
       </tr></thead>
       <tbody>
         ${doc.items.map((it, i) => `<tr>
@@ -195,13 +200,13 @@ export async function printCuttingDc(doc: CuttingOrder): Promise<void> {
           <td class="ctr">${esc(it.gender)}</td>
           <td class="ctr">${esc(it.standard)}</td>
           <td class="num" style="font-weight:700">${it.quantity.toLocaleString('en-IN')}</td>
-          <td class="num" style="font-weight:700">${Number(it.fabricConsumed).toFixed(2)}</td>
+          <td class="num" style="font-weight:700">${Number(it.fabricConsumed).toFixed(2)} ${shortUnit(unitOf(it.fabricId))}</td>
         </tr>`).join('')}
       </tbody>
       <tfoot><tr>
         <td colspan="6" class="num">TOTAL</td>
         <td class="num">${totalQty.toLocaleString('en-IN')} pcs</td>
-        <td class="num">${totalFabric.toFixed(2)} m</td>
+        <td class="num">${totalFabric.toFixed(2)}${fabricSuffix}</td>
       </tr></tfoot>
     </table>`
 
@@ -216,7 +221,7 @@ export async function printCuttingDc(doc: CuttingOrder): Promise<void> {
       { label: 'Sales Order',    value: esc(doc.schoolOrderNumber) },
       { label: 'Received By',    value: esc(doc.sentToPersonName) },
     ],
-    statsHtml: statHtml('Lines', String(doc.items.length)) + statHtml('Total Pieces', totalQty.toLocaleString('en-IN')) + statHtml('Fabric Consumed', totalFabric.toFixed(2) + ' m'),
+    statsHtml: statHtml('Lines', String(doc.items.length)) + statHtml('Total Pieces', totalQty.toLocaleString('en-IN')) + statHtml('Fabric Consumed', `${totalFabric.toFixed(2)}${fabricSuffix}`),
     bodyHtml,
   })
   openPrint(html)
@@ -273,6 +278,7 @@ export async function printUnitDc(doc: UnitDc): Promise<void> {
 export async function printAccessoryDc(doc: AccessoryDc): Promise<void> {
   const logo = await getLogoDataUrl()
   const totalQty = doc.items.reduce((s, i) => s + Number(i.quantity), 0)
+  const totalSuffix = sharedUnitSuffix(doc.items.map(i => i.unitOfMeasure))
 
   const bodyHtml = `
     <div class="section-title">Accessory Lines</div>
@@ -287,13 +293,13 @@ export async function printAccessoryDc(doc: AccessoryDc): Promise<void> {
         ${doc.items.map((it, i) => `<tr>
           <td class="ctr">${i + 1}</td>
           <td style="font-weight:600">${esc(it.accessoryName)}</td>
-          <td class="num" style="font-weight:700">${Number(it.quantity).toLocaleString('en-IN')}</td>
+          <td class="num" style="font-weight:700">${Number(it.quantity).toLocaleString('en-IN')} ${shortUnit(it.unitOfMeasure)}</td>
           <td class="ctr">${esc(it.unitOfMeasure)}</td>
         </tr>`).join('')}
       </tbody>
       <tfoot><tr>
         <td colspan="2" class="num">TOTAL</td>
-        <td class="num">${totalQty.toLocaleString('en-IN')}</td>
+        <td class="num">${totalQty.toLocaleString('en-IN')}${totalSuffix}</td>
         <td></td>
       </tr></tfoot>
     </table>`
@@ -309,7 +315,7 @@ export async function printAccessoryDc(doc: AccessoryDc): Promise<void> {
       { label: 'Status',         value: esc(doc.status) },
       { label: 'Received By',    value: esc(doc.sentToPersonName) },
     ],
-    statsHtml: statHtml('Lines', String(doc.items.length)) + statHtml('Total Qty', totalQty.toLocaleString('en-IN')),
+    statsHtml: statHtml('Lines', String(doc.items.length)) + statHtml('Total Qty', `${totalQty.toLocaleString('en-IN')}${totalSuffix}`),
     bodyHtml,
   })
   openPrint(html)
@@ -321,6 +327,7 @@ export async function printStitchingDc(doc: StitchingDc): Promise<void> {
   const logo = await getLogoDataUrl()
   const totalQty  = doc.items.reduce((s, i) => s + i.quantity, 0)
   const totalKaja = doc.kajaConsumption.reduce((s, k) => s + Number(k.quantity), 0)
+  const kajaSuffix = sharedUnitSuffix(doc.kajaConsumption.map(k => k.unitOfMeasure))
 
   const kajaHtml = doc.kajaConsumption.length > 0 ? `
     <div class="section-title">Kaja / Hook &amp; Eye Consumption</div>
@@ -335,13 +342,13 @@ export async function printStitchingDc(doc: StitchingDc): Promise<void> {
         ${doc.kajaConsumption.map((k, i) => `<tr>
           <td class="ctr">${i + 1}</td>
           <td style="font-weight:600">${esc(k.accessoryName)}</td>
-          <td class="num" style="font-weight:700">${Number(k.quantity).toLocaleString('en-IN')}</td>
+          <td class="num" style="font-weight:700">${Number(k.quantity).toLocaleString('en-IN')} ${shortUnit(k.unitOfMeasure)}</td>
           <td class="ctr">${esc(k.unitOfMeasure)}</td>
         </tr>`).join('')}
       </tbody>
       <tfoot><tr>
         <td colspan="2" class="num">TOTAL</td>
-        <td class="num">${totalKaja.toLocaleString('en-IN')}</td>
+        <td class="num">${totalKaja.toLocaleString('en-IN')}${kajaSuffix}</td>
         <td></td>
       </tr></tfoot>
     </table>` : ''

@@ -12,6 +12,9 @@ export interface FabricRoll {
 export interface RollEntry {
   quantityMeters: number
   unitPrice: number
+  /** Present when editing a roll that already exists. */
+  id?: string
+  rollNumber?: number
 }
 
 export const fabricRollsApi = {
