@@ -76,10 +76,13 @@ export default function Dispatch() {
     }))
   }
 
+  const removeLine = (idx: number) =>
+    setForm(p => ({ ...p, items: p.items.filter((_, i) => i !== idx) }))
+
   const save = async () => {
     if (!form.schoolId || !form.dispatchDate) { setError('School and date are required'); return }
-    if (form.items.some(l => !l.styleId || !l.gender || !l.standard || !l.quantity)) {
-      setError('Each line needs style, gender, standard, and quantity'); return
+    if (form.items.some(l => !l.styleId || !l.gender || !l.quantity)) {
+      setError('Each line needs style, gender, and quantity'); return
     }
     setSaving(true); setError('')
     try {
@@ -173,7 +176,7 @@ export default function Dispatch() {
 
           <div style={{ marginBottom: 8, fontWeight: 600, fontSize: 13 }}>Items</div>
           {form.items.map((line, idx) => (
-            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8, marginBottom: 8 }}>
               <select value={line.styleId} onChange={e => updateLine(idx, { styleId: e.target.value })}>
                 <option value="">Style</option>
                 {styles.map(s => <option key={s.id} value={s.id}>{s.styleCode} — {s.styleName}</option>)}
@@ -185,6 +188,15 @@ export default function Dispatch() {
               </select>
               <input placeholder="Standard" value={line.standard} onChange={e => updateLine(idx, { standard: e.target.value })} />
               <input type="number" placeholder="Qty" value={line.quantity || ''} onChange={e => updateLine(idx, { quantity: Number(e.target.value) })} />
+              <button
+                className="btn-icon"
+                title="Remove line"
+                disabled={form.items.length === 1}
+                onClick={() => removeLine(idx)}
+                style={{ color: form.items.length === 1 ? '#d1d5db' : '#dc2626', alignSelf: 'center' }}
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           ))}
           <button type="button" className="btn btn-sm btn-secondary" onClick={() => setForm(p => ({ ...p, items: [...p.items, emptyLine()] }))}>

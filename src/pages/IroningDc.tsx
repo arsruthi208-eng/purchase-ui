@@ -82,6 +82,9 @@ export default function IroningDc() {
     }))
   }
 
+  const removeLine = (idx: number) =>
+    setForm(p => ({ ...p, items: p.items.filter((_, i) => i !== idx) }))
+
   const save = async () => {
     if (!form.schoolOrderId || !form.stitchingUnitId || !form.deliveryDate) {
       setError('School order, stitching unit, and date are required'); return
@@ -216,6 +219,7 @@ export default function IroningDc() {
                   <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Gender</th>
                   <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Standard</th>
                   <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', color: 'var(--text-muted)' }}>Qty (pcs)</th>
+                  <th style={{ width: 36 }} />
                 </tr>
               </thead>
               <tbody>
@@ -236,12 +240,23 @@ export default function IroningDc() {
                         style={{ width: 80, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 5, textAlign: 'right', fontSize: 13 }}
                       />
                     </td>
+                    <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+                      <button
+                        className="btn-icon"
+                        title="Remove line"
+                        disabled={form.items.length === 1}
+                        onClick={() => removeLine(idx)}
+                        style={{ color: form.items.length === 1 ? '#d1d5db' : '#dc2626' }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr style={{ background: '#f8fafc', borderTop: '2px solid var(--border)' }}>
-                  <td colSpan={3} style={{ padding: '8px 12px', fontWeight: 700, fontSize: 12, color: 'var(--text-muted)' }}>TOTAL</td>
+                  <td colSpan={4} style={{ padding: '8px 12px', fontWeight: 700, fontSize: 12, color: 'var(--text-muted)' }}>TOTAL</td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, fontSize: 14, color: 'var(--navy)' }}>
                     {form.items.reduce((s, l) => s + l.quantity, 0).toLocaleString()} pcs
                   </td>

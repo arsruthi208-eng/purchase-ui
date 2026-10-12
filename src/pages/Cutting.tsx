@@ -315,8 +315,8 @@ export default function Cutting() {
   const checkAndSave = async () => {
     if (!schoolOrderId) { setError('School order is required'); return }
     if (!schoolId || !cuttingDate) { setError('School and date are required'); return }
-    if (lines.some(l => !l.styleId || !l.fabricId || !l.gender || !l.standard || !l.quantity)) {
-      setError('Each line needs style, fabric, gender, standard, and quantity'); return
+    if (lines.some(l => !l.styleId || !l.fabricId || !l.gender || !l.quantity)) {
+      setError('Each line needs style, fabric, gender, and quantity'); return
     }
     if (lines.some(l => !l.fabricConsumed || l.fabricConsumed <= 0)) {
       setError('Each line must have fabric consumed > 0. Select rolls or ensure style has a fabric rate.'); return
