@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { Trash2 } from '../icons'
 import { stitchingDcApi, type StitchingDc } from '../api/stitchingDc'
 import { printStitchingDc } from '../utils/printDc'
 import { useApiData } from '../hooks/useApiData'
@@ -21,6 +22,7 @@ export default function StitchingDcDetail() {
   const [editSentTo, setEditSentTo] = useState('')
   const [editNotes, setEditNotes] = useState('')
   const [editQtys, setEditQtys] = useState<Record<string, number>>({})
+  const [editItemIds, setEditItemIds] = useState<string[]>([])
   const { dialog, showError, showConfirm } = useAlertDialog()
 
   useEffect(() => {
@@ -29,21 +31,24 @@ export default function StitchingDcDetail() {
       setEditSentTo(doc.sentToPersonName ?? '')
       setEditNotes('')
       setEditQtys(Object.fromEntries(doc.items.map(i => [i.id, i.quantity])))
+      setEditItemIds(doc.items.map(i => i.id))
     }
   }, [doc])
 
   const startEdit = () => setEditing(true)
-  const cancelEdit = () => { setEditing(false); if (doc) { setEditDate(doc.deliveryDate); setEditSentTo(doc.sentToPersonName ?? ''); setEditQtys(Object.fromEntries(doc.items.map(i => [i.id, i.quantity]))) } }
+  const cancelEdit = () => { setEditing(false); if (doc) { setEditDate(doc.deliveryDate); setEditSentTo(doc.sentToPersonName ?? ''); setEditQtys(Object.fromEntries(doc.items.map(i => [i.id, i.quantity]))); setEditItemIds(doc.items.map(i => i.id)) } }
+  const deleteEditItem = (id: string) => setEditItemIds(ids => ids.filter(i => i !== id))
 
   const doSave = async () => {
     if (!doc) return
+    if (editItemIds.some(id => !editQtys[id] || editQtys[id] <= 0)) { showError('Invalid Quantity', 'All item quantities must be greater than 0.'); return }
     setBusy(true)
     try {
       await stitchingDcApi.update(doc.id, {
         deliveryDate: editDate,
         sentToPersonName: editSentTo || undefined,
         notes: editNotes || undefined,
-        items: doc.items.map(i => ({ id: i.id, quantity: editQtys[i.id] ?? i.quantity })),
+        items: editItemIds.map(id => ({ id, quantity: editQtys[id] })),
       })
       setEditing(false)
       reload()
@@ -132,10 +137,11 @@ export default function StitchingDcDetail() {
             <tr>
               <th>#</th><th>Style</th><th>Gender</th><th>Standard</th>
               <th style={{ textAlign: 'right' }}>Quantity</th>
+              {editing && <th style={{ width: 36 }} />}
             </tr>
           </thead>
           <tbody>
-            {doc.items.map((item, idx) => (
+            {doc.items.filter(item => !editing || editItemIds.includes(item.id)).map((item, idx) => (
               <tr key={item.id}>
                 <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{idx + 1}</td>
                 <td style={{ fontWeight: 600 }}>{item.styleName}</td>
@@ -143,15 +149,22 @@ export default function StitchingDcDetail() {
                 <td>{item.standard}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--navy)' }}>
                   {editing
-                    ? <input type="number" min="0" value={editQtys[item.id] ?? item.quantity} onChange={e => setEditQtys(q => ({ ...q, [item.id]: Number(e.target.value) }))} style={{ width: 80, textAlign: 'right', padding: '3px 6px', border: '1px solid var(--border)', borderRadius: 4 }} />
+                    ? <input type="number" min="1" value={editQtys[item.id] ?? item.quantity} onChange={e => setEditQtys(q => ({ ...q, [item.id]: Number(e.target.value) }))} style={{ width: 80, textAlign: 'right', padding: '3px 6px', border: '1px solid var(--border)', borderRadius: 4 }} />
                     : item.quantity.toLocaleString()}
                 </td>
+                {editing && (
+                  <td style={{ textAlign: 'center' }}>
+                    <button className="btn-icon" title="Remove item" disabled={editItemIds.length === 1} onClick={() => deleteEditItem(item.id)} style={{ color: editItemIds.length === 1 ? '#d1d5db' : '#dc2626' }}>
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr style={{ borderTop: '2px solid var(--border)', fontWeight: 700 }}>
-              <td colSpan={4} style={{ textAlign: 'right', paddingRight: 12, fontSize: 13 }}>Total Pieces</td>
+              <td colSpan={editing ? 5 : 4} style={{ textAlign: 'right', paddingRight: 12, fontSize: 13 }}>Total Pieces</td>
               <td style={{ textAlign: 'right', color: 'var(--navy)', fontSize: 15 }}>{totalQty.toLocaleString()}</td>
             </tr>
           </tfoot>

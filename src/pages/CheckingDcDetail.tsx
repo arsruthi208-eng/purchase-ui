@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { Trash2 } from '../icons'
 import { checkingDcApi, type CheckingDc } from '../api/checkingDc'
 import { printCheckingDc } from '../utils/printDc'
 import { useApiData } from '../hooks/useApiData'
@@ -20,16 +21,19 @@ export default function CheckingDcDetail() {
   const [editSentTo, setEditSentTo] = useState('')
   const [editNotes, setEditNotes] = useState('')
   const [editQtys, setEditQtys] = useState<Record<string, number>>({})
+  const [editItemIds, setEditItemIds] = useState<string[]>([])
   const { dialog, showError, showConfirm } = useAlertDialog()
 
-  useEffect(() => { if (doc) { setEditDate(doc.checkDate); setEditSentTo(doc.sentToPersonName ?? ''); setEditQtys(Object.fromEntries(doc.items.map(i => [i.id, i.quantity]))) } }, [doc])
-  const cancelEdit = () => { setEditing(false); if (doc) { setEditDate(doc.checkDate); setEditSentTo(doc.sentToPersonName ?? ''); setEditQtys(Object.fromEntries(doc.items.map(i => [i.id, i.quantity]))) } }
+  useEffect(() => { if (doc) { setEditDate(doc.checkDate); setEditSentTo(doc.sentToPersonName ?? ''); setEditQtys(Object.fromEntries(doc.items.map(i => [i.id, i.quantity]))); setEditItemIds(doc.items.map(i => i.id)) } }, [doc])
+  const cancelEdit = () => { setEditing(false); if (doc) { setEditDate(doc.checkDate); setEditSentTo(doc.sentToPersonName ?? ''); setEditQtys(Object.fromEntries(doc.items.map(i => [i.id, i.quantity]))); setEditItemIds(doc.items.map(i => i.id)) } }
+  const deleteEditItem = (id: string) => setEditItemIds(ids => ids.filter(i => i !== id))
 
   const doSaveEdit = async () => {
     if (!doc) return
+    if (editItemIds.some(id => !editQtys[id] || editQtys[id] <= 0)) { showError('Invalid Quantity', 'All item quantities must be greater than 0.'); return }
     setBusy(true)
     try {
-      await checkingDcApi.update(doc.id, { checkDate: editDate, sentToPersonName: editSentTo || undefined, notes: editNotes || undefined, items: doc.items.map(i => ({ id: i.id, quantity: editQtys[i.id] ?? i.quantity })) })
+      await checkingDcApi.update(doc.id, { checkDate: editDate, sentToPersonName: editSentTo || undefined, notes: editNotes || undefined, items: editItemIds.map(id => ({ id, quantity: editQtys[id] })) })
       setEditing(false); reload()
     } catch (e: any) { isForbiddenError(e) ? showError('Access Denied', PERMISSION_DENIED_MSG) : showError('Save Failed', e.message) }
     finally { setBusy(false) }
@@ -106,17 +110,25 @@ export default function CheckingDcDetail() {
               <th>Gender</th>
               <th>Standard</th>
               <th style={{ textAlign: 'right' }}>Quantity</th>
+              {editing && <th style={{ width: 36 }} />}
             </tr>
           </thead>
           <tbody>
-            {doc.items.map(it => (
+            {doc.items.filter(it => !editing || editItemIds.includes(it.id)).map(it => (
               <tr key={it.id}>
                 <td style={{ fontWeight: 600 }}>{it.styleName}</td>
                 <td>{it.gender}</td>
                 <td>{it.standard}</td>
                 <td style={{ textAlign: 'right', fontWeight: 800 }}>
-                  {editing ? <input type="number" min="0" value={editQtys[it.id] ?? it.quantity} onChange={e => setEditQtys(q => ({ ...q, [it.id]: Number(e.target.value) }))} style={{ width: 80, textAlign: 'right', padding: '3px 6px', border: '1px solid var(--border)', borderRadius: 4 }} /> : it.quantity.toLocaleString()}
+                  {editing ? <input type="number" min="1" value={editQtys[it.id] ?? it.quantity} onChange={e => setEditQtys(q => ({ ...q, [it.id]: Number(e.target.value) }))} style={{ width: 80, textAlign: 'right', padding: '3px 6px', border: '1px solid var(--border)', borderRadius: 4 }} /> : it.quantity.toLocaleString()}
                 </td>
+                {editing && (
+                  <td style={{ textAlign: 'center' }}>
+                    <button className="btn-icon" title="Remove item" disabled={editItemIds.length === 1} onClick={() => deleteEditItem(it.id)} style={{ color: editItemIds.length === 1 ? '#d1d5db' : '#dc2626' }}>
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
