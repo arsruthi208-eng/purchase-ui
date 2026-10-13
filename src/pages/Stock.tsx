@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Package } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { stockApi, type StockEntry, type StockBalanceSummary, type CreateStockEntryRequest } from '../api/stock'
 import { type RollEntry, fabricRollsApi } from '../api/fabricRolls'
 import { fabricsApi, type Fabric } from '../api/fabrics'
@@ -334,14 +335,13 @@ export default function Stock() {
       {/* ── Filter bar ── */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
         {view === 'balance' && (
-          <select
+          <SearchableSelect
             value={selectedItemId}
-            onChange={e => { setSelectedItemId(e.target.value); setSearch('') }}
-            style={{ minWidth: 280, padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 13 }}
-          >
-            <option value="">Select {isFabric ? 'fabric' : 'accessory'} to view stats…</option>
-            {balances.map(b => <option key={b.referenceId} value={b.referenceId}>{b.referenceName}</option>)}
-          </select>
+            onChange={v => { setSelectedItemId(v); setSearch('') }}
+            placeholder={`Select ${isFabric ? 'fabric' : 'accessory'} to view stats…`}
+            options={balances.map(b => ({ value: b.referenceId, label: b.referenceName }))}
+            style={{ minWidth: 280 }}
+          />
         )}
         <input
           placeholder={`Search ${isFabric ? 'fabric' : 'accessory'} name…`}
@@ -374,15 +374,19 @@ export default function Stock() {
             <label>{isFabric ? 'Fabric' : 'Accessory'} *</label>
             {isFabric
               ? (
-                <select value={form.referenceId} onChange={e => onFabricChange(e.target.value)}>
-                  <option value="">Select fabric…</option>
-                  {fabrics.map(f => <option key={f.id} value={f.id}>{f.fabricCode} — {f.fabricName}</option>)}
-                </select>
+                <SearchableSelect
+                  value={form.referenceId}
+                  onChange={onFabricChange}
+                  placeholder="Select fabric…"
+                  options={fabrics.map(f => ({ value: f.id, label: `${f.fabricCode} — ${f.fabricName}` }))}
+                />
               ) : (
-                <select value={form.referenceId} onChange={e => setForm(p => ({ ...p, referenceId: e.target.value }))}>
-                  <option value="">Select accessory…</option>
-                  {accessories.map(a => <option key={a.id} value={a.id}>{a.accessoryCode} — {a.accessoryName}</option>)}
-                </select>
+                <SearchableSelect
+                  value={form.referenceId}
+                  onChange={v => setForm(p => ({ ...p, referenceId: v }))}
+                  placeholder="Select accessory…"
+                  options={accessories.map(a => ({ value: a.id, label: `${a.accessoryCode} — ${a.accessoryName}` }))}
+                />
               )}
           </div>
 

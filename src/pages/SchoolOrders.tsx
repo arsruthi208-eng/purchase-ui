@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2, Pencil } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import {
   schoolOrdersApi, type SchoolOrderSummary, type CreateSchoolOrderRequest,
   type SchoolOrderKind, ORDER_KIND_LABEL, STAGE_LABELS,
@@ -218,10 +219,12 @@ export default function SchoolOrders() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="form-group">
               <label>School *</label>
-              <select value={form.schoolId} onChange={e => setForm(p => ({ ...p, schoolId: e.target.value }))}>
-                <option value="">Select school…</option>
-                {schools.map(s => <option key={s.id} value={s.id}>{s.schoolName}</option>)}
-              </select>
+              <SearchableSelect
+                value={form.schoolId}
+                onChange={v => setForm(p => ({ ...p, schoolId: v }))}
+                placeholder="Select school…"
+                options={schools.map(s => ({ value: s.id, label: s.schoolName }))}
+              />
             </div>
             <div className="form-group">
               <label>Academic Year</label>
@@ -261,10 +264,12 @@ export default function SchoolOrders() {
           <div style={{ maxHeight: 300, overflowY: 'auto', paddingRight: 4 }}>
             {form.items.map((line, idx) => (
               <div key={idx} style={{ display: 'grid', gridTemplateColumns: cols, gap: 6, marginBottom: 6 }}>
-                <select value={line.styleId} onChange={e => updateLine(idx, { styleId: e.target.value })}>
-                  <option value="">Style…</option>
-                  {styles.map(s => <option key={s.id} value={s.id}>{s.styleName}</option>)}
-                </select>
+                <SearchableSelect
+                  value={line.styleId}
+                  onChange={v => updateLine(idx, { styleId: v })}
+                  placeholder="Style…"
+                  options={styles.map(s => ({ value: s.id, label: s.styleName }))}
+                />
                 <select value={line.gender} onChange={e => updateLine(idx, { gender: e.target.value })}>
                   {GENDERS.map(g => <option key={g} value={g}>{kind === 'CORPORATE' ? (g === 'BOYS' ? "MEN'S" : g === 'GIRLS' ? 'LADIES' : g) : g}</option>)}
                 </select>

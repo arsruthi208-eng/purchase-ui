@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { compressImage } from '../api/auth'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { FilterBar } from '../components/ui'
 
 interface AppUser {
@@ -355,9 +356,13 @@ export default function Users() {
               <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inp} />
             </Field>
             <Field label="Role">
-              <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={inp}>
-                {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-              </select>
+              <SearchableSelect
+                value={form.role}
+                onChange={v => setForm(f => ({ ...f, role: v }))}
+                placeholder="Select role"
+                options={ROLES.map(r => ({ value: r, label: ROLE_LABELS[r] }))}
+                style={inp}
+              />
             </Field>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 24, justifyContent: 'flex-end' }}>

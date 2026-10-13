@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { dashboardApi, type ProductionReport, type DepartmentStatus, type ProductionReportOrder } from '../api/dashboard'
 import { PRODUCTION_STAGES, STAGE_LABELS } from '../api/schoolOrders'
 import { stockApi, type StockBalanceSummary } from '../api/stock'
@@ -182,32 +183,30 @@ export default function Dashboard() {
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.3fr) minmax(200px, 1.2fr) minmax(180px, 1fr) minmax(140px, 0.9fr)', gap: 10, flex: 1, minWidth: 280 }}>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>School order</label>
-              <select value={orderId} onChange={e => onOrderChange(e.target.value)}>
-                <option value="">All school orders ({orders.length})</option>
-                {orders.map(o => (
-                  <option key={o.orderId} value={o.orderId}>
-                    {o.orderNumber} — {o.schoolName} ({o.itemCount} styles)
-                  </option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={orderId}
+                onChange={onOrderChange}
+                placeholder={`All school orders (${orders.length})`}
+                options={orders.map(o => ({ value: o.orderId, label: `${o.orderNumber} — ${o.schoolName} (${o.itemCount} styles)` }))}
+              />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Style</label>
-              <select value={styleId} onChange={e => onStyleChange(e.target.value)}>
-                <option value="">All styles ({styleOptions.length})</option>
-                {styleOptions.map(opt => (
-                  <option key={opt.id} value={opt.id}>{opt.name}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={styleId}
+                onChange={onStyleChange}
+                placeholder={`All styles (${styleOptions.length})`}
+                options={styleOptions.map(opt => ({ value: opt.id, label: opt.name }))}
+              />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Order stage</label>
-              <select value={stage} onChange={e => onStageChange(e.target.value)}>
-                <option value="">All stages</option>
-                {ALL_STAGES.map(st => (
-                  <option key={st.code} value={st.code}>{st.label}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={stage}
+                onChange={onStageChange}
+                placeholder="All stages"
+                options={ALL_STAGES.map(st => ({ value: st.code, label: st.label }))}
+              />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label>Search</label>

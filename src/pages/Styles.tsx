@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Plus, Pencil, Trash2 } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { stylesApi, type Style, type CreateStyleRequest, type UpdateStyleRequest } from '../api/styles'
 import { schoolsApi, type School } from '../api/schools'
 import { Modal, FormError, FormActions, statusBadge, LoadError, FilterBar } from '../components/ui'
@@ -158,10 +159,12 @@ export default function Styles() {
           <div className="form-group">
             <label>Pattern *</label>
             {patterns.length > 0 ? (
-              <select value={form.pattern} onChange={e => setForm(p => ({ ...p, pattern: e.target.value }))}>
-                <option value="">Select pattern</option>
-                {patterns.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
+              <SearchableSelect
+                value={form.pattern}
+                onChange={v => setForm(p => ({ ...p, pattern: v }))}
+                placeholder="Select pattern"
+                options={patterns.map(p => ({ value: p, label: p }))}
+              />
             ) : (
               <input value={form.pattern} onChange={e => setForm(p => ({ ...p, pattern: e.target.value }))} />
             )}

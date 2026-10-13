@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { stitchingUnitsApi, type StitchingUnit, type CreateStitchingUnitRequest } from '../api/stitchingUnits'
 import { Modal, FormError, FormActions, statusBadge, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
@@ -102,10 +103,12 @@ export default function StitchingUnits() {
           </div>
           <div className="form-group">
             <label>Unit Type</label>
-            <select value={form.unitType ?? ''} onChange={e => setForm(p => ({ ...p, unitType: e.target.value }))}>
-              <option value="">Select type…</option>
-              {UNIT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+            <SearchableSelect
+              value={form.unitType ?? ''}
+              onChange={v => setForm(p => ({ ...p, unitType: v }))}
+              placeholder="Select type…"
+              options={UNIT_TYPES.map(t => ({ value: t, label: t }))}
+            />
           </div>
           <div className="form-group">
             <label>Phone</label>

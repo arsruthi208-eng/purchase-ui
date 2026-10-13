@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { accessoriesApi, accessoryTypesApi, type Accessory, type AccessoryType, type CreateAccessoryRequest } from '../api/accessories'
 import { purchasePartiesApi, type PurchaseParty } from '../api/purchaseParties'
 import { Modal, FormError, FormActions, statusBadge, LoadError, FilterBar } from '../components/ui'
@@ -126,14 +127,12 @@ export default function Accessories() {
           </div>
           <div className="form-group">
             <label>Type *</label>
-            <select value={form.typeId} onChange={e => setForm(p => ({ ...p, typeId: e.target.value }))}>
-              <option value="">Select type</option>
-              {types.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.categoryName ? `${t.categoryName} / ${t.typeName}` : t.typeName}
-                </option>
-              ))}
-            </select>
+            <SearchableSelect
+              value={form.typeId}
+              onChange={v => setForm(p => ({ ...p, typeId: v }))}
+              placeholder="Select type"
+              options={types.map(t => ({ value: t.id, label: t.categoryName ? `${t.categoryName} / ${t.typeName}` : t.typeName }))}
+            />
           </div>
           <div className="form-group">
             <label>Unit of Measure *</label>
@@ -143,10 +142,12 @@ export default function Accessories() {
           </div>
           <div className="form-group">
             <label>Purchase Party</label>
-            <select value={form.partyId ?? ''} onChange={e => setForm(p => ({ ...p, partyId: e.target.value }))}>
-              <option value="">Select party</option>
-              {parties.map(p => <option key={p.id} value={p.id}>{p.partyName}</option>)}
-            </select>
+            <SearchableSelect
+              value={form.partyId ?? ''}
+              onChange={v => setForm(p => ({ ...p, partyId: v }))}
+              placeholder="Select party"
+              options={parties.map(p => ({ value: p.id, label: p.partyName }))}
+            />
           </div>
           <FormActions onCancel={() => setShowForm(false)} onSave={save} saving={saving} />
         </Modal>

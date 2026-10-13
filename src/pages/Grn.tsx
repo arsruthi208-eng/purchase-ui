@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { grnApi, type GrnSummary, type CreateGrnRequest, type CreateGrnItemRequest } from '../api/grn'
 import { type RollEntry, fabricRollsApi } from '../api/fabricRolls'
 import { purchaseOrdersApi, type PoSummary } from '../api/purchaseOrders'
@@ -183,12 +184,13 @@ export default function Grn() {
           <FormError message={error} />
           <div className="form-group">
             <label>Purchase Order *</label>
-            <select value={poId} onChange={e => onPoChange(e.target.value)} disabled={loadingPo}>
-              <option value="">Select open PO</option>
-              {openPos.map(po => (
-                <option key={po.id} value={po.id}>{po.poNumber} — {po.purchasePartyName ?? 'No party'}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              value={poId}
+              onChange={onPoChange}
+              placeholder="Select open PO"
+              disabled={loadingPo}
+              options={openPos.map(po => ({ value: po.id, label: `${po.poNumber} — ${po.purchasePartyName ?? 'No party'}` }))}
+            />
             {loadingPo && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Loading fabric lines…</div>}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, FileText, Trash2, Pencil } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { purchaseOrdersApi, type PoSummary, type CreatePoRequest } from '../api/purchaseOrders'
 import { purchasePartiesApi, type PurchaseParty } from '../api/purchaseParties'
 import { accessoriesApi, type Accessory } from '../api/accessories'
@@ -284,10 +285,9 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="form-group">
               <label>Purchase Party *</label>
-              <select
+              <SearchableSelect
                 value={form.purchasePartyId ?? ''}
-                onChange={e => {
-                  const purchasePartyId = e.target.value
+                onChange={purchasePartyId => {
                   setForm(p => ({
                     ...p,
                     purchasePartyId,
@@ -296,10 +296,9 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                       : p.items.map(line => ({ ...line, fabricId: '', colourId: '' })),
                   }))
                 }}
-              >
-                <option value="">Select purchase party</option>
-                {parties.map(b => <option key={b.id} value={b.id}>{b.partyName}</option>)}
-              </select>
+                placeholder="Select purchase party"
+                options={parties.map(b => ({ value: b.id, label: b.partyName }))}
+              />
               {(() => {
                 const party = parties.find(p => p.id === form.purchasePartyId)
                 return party?.gstNumber
@@ -313,10 +312,9 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
             </div>
             <div className="form-group">
               <label>School Order *</label>
-              <select
+              <SearchableSelect
                 value={form.schoolOrderId}
-                onChange={e => {
-                  const newSoId = e.target.value
+                onChange={newSoId => {
                   setForm(p => ({
                     ...p,
                     schoolOrderId: newSoId,
@@ -335,15 +333,10 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                     }),
                   }))
                 }}
+                placeholder="— Select school order —"
+                options={schoolOrders.map(so => ({ value: so.id, label: `${so.orderNumber} — ${so.schoolName}` }))}
                 style={{ borderColor: !form.schoolOrderId ? '#fca5a5' : undefined }}
-              >
-                <option value="">— Select school order —</option>
-                {schoolOrders.map(so => (
-                  <option key={so.id} value={so.id}>
-                    {so.orderNumber} — {so.schoolName}
-                  </option>
-                ))}
-              </select>
+              />
               {form.schoolOrderId && (() => {
                 const so = schoolOrders.find(s => s.id === form.schoolOrderId)
                 return so ? (
@@ -363,22 +356,19 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
             </div>
             <div className="form-group">
               <label>Shipping Address</label>
-              <select
+              <SearchableSelect
                 value={PRESET_ADDRESSES.includes(form.shippingAddress ?? '') ? (form.shippingAddress ?? '') : CUSTOM_SENTINEL}
-                onChange={e => {
-                  if (e.target.value === CUSTOM_SENTINEL) {
+                onChange={v => {
+                  if (v === CUSTOM_SENTINEL) {
                     setForm(p => ({ ...p, shippingAddress: '' }))
                   } else {
-                    setForm(p => ({ ...p, shippingAddress: e.target.value }))
+                    setForm(p => ({ ...p, shippingAddress: v }))
                   }
                 }}
+                placeholder="Select address"
+                options={[...PRESET_ADDRESSES.map(a => ({ value: a, label: a })), { value: CUSTOM_SENTINEL, label: '✏️ Enter custom address…' }]}
                 style={{ marginBottom: 6 }}
-              >
-                {PRESET_ADDRESSES.map(a => (
-                  <option key={a} value={a}>{a}</option>
-                ))}
-                <option value={CUSTOM_SENTINEL}>✏️ Enter custom address…</option>
-              </select>
+              />
               {/* Show textarea only for custom, or always for editing preset */}
               {(!PRESET_ADDRESSES.includes(form.shippingAddress ?? '') || form.shippingAddress === '') && (
                 <textarea
@@ -391,22 +381,19 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
             </div>
             <div className="form-group">
               <label>Transport</label>
-              <select
+              <SearchableSelect
                 value={PRESET_TRANSPORTS.includes(form.transportDetails ?? '') ? (form.transportDetails ?? '') : CUSTOM_SENTINEL}
-                onChange={e => {
-                  if (e.target.value === CUSTOM_SENTINEL) {
+                onChange={v => {
+                  if (v === CUSTOM_SENTINEL) {
                     setForm(p => ({ ...p, transportDetails: '' }))
                   } else {
-                    setForm(p => ({ ...p, transportDetails: e.target.value }))
+                    setForm(p => ({ ...p, transportDetails: v }))
                   }
                 }}
+                placeholder="Select transport"
+                options={[...PRESET_TRANSPORTS.map(t => ({ value: t, label: t })), { value: CUSTOM_SENTINEL, label: '✏️ Enter custom transport…' }]}
                 style={{ marginBottom: 6 }}
-              >
-                {PRESET_TRANSPORTS.map(t => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-                <option value={CUSTOM_SENTINEL}>✏️ Enter custom transport…</option>
-              </select>
+              />
               {(!PRESET_TRANSPORTS.includes(form.transportDetails ?? '') || form.transportDetails === '') && (
                 <textarea
                   rows={1}
@@ -439,14 +426,13 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                 </div>
                 {form.items.map((line, idx) => (
                   <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2.4fr 0.9fr 0.9fr 0.9fr auto', gap: 8, alignItems: 'center', marginBottom: 10 }}>
-                    <select
+                    <SearchableSelect
                       value={line.accessoryId ?? ''}
-                      onChange={e => updateLine(idx, { accessoryId: e.target.value })}
+                      onChange={v => updateLine(idx, { accessoryId: v })}
+                      placeholder={form.purchasePartyId ? 'Accessory *' : 'Select purchase party first'}
                       disabled={!form.purchasePartyId}
-                    >
-                      <option value="">{form.purchasePartyId ? 'Accessory *' : 'Select purchase party first'}</option>
-                      {accessories.map(a => <option key={a.id} value={a.id}>{a.accessoryCode} — {a.accessoryName}</option>)}
-                    </select>
+                      options={accessories.map(a => ({ value: a.id, label: `${a.accessoryCode} — ${a.accessoryName}` }))}
+                    />
                     <select value={line.unitOfMeasure} onChange={e => updateLine(idx, { unitOfMeasure: e.target.value })}>
                       {ACC_UOMS.map(u => <option key={u} value={u}>{u}</option>)}
                     </select>
@@ -479,18 +465,19 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
               return (
                 <div key={idx} style={{ marginBottom: 10 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 0.8fr 0.9fr 0.9fr 0.8fr 0.8fr auto', gap: 8, alignItems: 'center' }}>
-                    <select
+                    <SearchableSelect
                       value={line.fabricId}
-                      onChange={e => updateLine(idx, { fabricId: e.target.value })}
+                      onChange={v => updateLine(idx, { fabricId: v })}
+                      placeholder={form.purchasePartyId ? 'Fabric *' : 'Select purchase party first'}
                       disabled={!form.purchasePartyId}
-                    >
-                      <option value="">{form.purchasePartyId ? 'Fabric *' : 'Select purchase party first'}</option>
-                      {fabrics.map(f => <option key={f.id} value={f.id}>{f.fabricCode} — {f.fabricName}</option>)}
-                    </select>
-                    <select value={line.colourId ?? ''} onChange={e => updateLine(idx, { colourId: e.target.value })}>
-                      <option value="">Shade</option>
-                      {colours.map(c => <option key={c.id} value={c.id}>{c.colourName}</option>)}
-                    </select>
+                      options={fabrics.map(f => ({ value: f.id, label: `${f.fabricCode} — ${f.fabricName}` }))}
+                    />
+                    <SearchableSelect
+                      value={line.colourId ?? ''}
+                      onChange={v => updateLine(idx, { colourId: v })}
+                      placeholder="Shade"
+                      options={colours.map(c => ({ value: c.id, label: c.colourName }))}
+                    />
                     <select value={line.unitOfMeasure} onChange={e => updateLine(idx, { unitOfMeasure: e.target.value })}>
                       <option value="METER">METER</option>
                       <option value="KG">KG</option>

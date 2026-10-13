@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { cuttingApi, type CuttingOrder, type CreateCuttingRequest, type CreateCuttingItemRequest } from '../api/cutting'
 import { type FabricRoll, fabricRollsApi } from '../api/fabricRolls'
 import { schoolsApi, type School } from '../api/schools'
@@ -454,12 +455,12 @@ export default function Cutting() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div className="form-group">
               <label>School Order *</label>
-              <select value={schoolOrderId} onChange={e => onSchoolOrderChange(e.target.value)}>
-                <option value="">Select school order…</option>
-                {confirmedOrders.map(o => (
-                  <option key={o.id} value={o.id}>{o.orderNumber} — {o.schoolName}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={schoolOrderId}
+                onChange={onSchoolOrderChange}
+                placeholder="Select school order…"
+                options={confirmedOrders.map(o => ({ value: o.id, label: `${o.orderNumber} — ${o.schoolName}` }))}
+              />
             </div>
             <div className="form-group">
               <label>School *</label>
@@ -469,10 +470,12 @@ export default function Cutting() {
                   <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 6 }}>from school order</span>
                 </div>
               ) : (
-                <select value={schoolId} onChange={e => setSchoolId(e.target.value)}>
-                  <option value="">Select school</option>
-                  {schools.map(s => <option key={s.id} value={s.id}>{s.schoolName}</option>)}
-                </select>
+                <SearchableSelect
+                  value={schoolId}
+                  onChange={setSchoolId}
+                  placeholder="Select school"
+                  options={schools.map(s => ({ value: s.id, label: s.schoolName }))}
+                />
               )}
             </div>
             <div className="form-group">
@@ -499,18 +502,24 @@ export default function Cutting() {
               <div key={idx} style={{ marginBottom: 14, padding: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid var(--border)' }}>
                 {/* Row 1: Style, Fabric, Colour, Gender, Standard, Qty */}
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 1fr auto', gap: 6, alignItems: 'center', marginBottom: 8 }}>
-                  <select value={line.styleId} onChange={e => updateLine(idx, { styleId: e.target.value })}>
-                    <option value="">Style…</option>
-                    {styles.map(s => <option key={s.id} value={s.id}>{s.styleName}</option>)}
-                  </select>
-                  <select value={line.fabricId} onChange={e => loadRollsForLine(idx, e.target.value)}>
-                    <option value="">Fabric…</option>
-                    {fabrics.map(f => <option key={f.id} value={f.id}>{f.fabricCode} — {f.fabricName}</option>)}
-                  </select>
-                  <select value={line.colourId ?? ''} onChange={e => updateLine(idx, { colourId: e.target.value })}>
-                    <option value="">Colour</option>
-                    {colours.map(c => <option key={c.id} value={c.id}>{c.colourName}</option>)}
-                  </select>
+                  <SearchableSelect
+                    value={line.styleId}
+                    onChange={v => updateLine(idx, { styleId: v })}
+                    placeholder="Style…"
+                    options={styles.map(s => ({ value: s.id, label: s.styleName }))}
+                  />
+                  <SearchableSelect
+                    value={line.fabricId}
+                    onChange={v => loadRollsForLine(idx, v)}
+                    placeholder="Fabric…"
+                    options={fabrics.map(f => ({ value: f.id, label: `${f.fabricCode} — ${f.fabricName}` }))}
+                  />
+                  <SearchableSelect
+                    value={line.colourId ?? ''}
+                    onChange={v => updateLine(idx, { colourId: v })}
+                    placeholder="Colour"
+                    options={colours.map(c => ({ value: c.id, label: c.colourName }))}
+                  />
                   <select value={line.gender} onChange={e => updateLine(idx, { gender: e.target.value })}>
                     <option value="BOYS">BOYS</option>
                     <option value="GIRLS">GIRLS</option>

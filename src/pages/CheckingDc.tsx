@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { checkingDcApi, type CheckingDc, type CreateCheckingDcRequest } from '../api/checkingDc'
 import { stitchingUnitsApi, type StitchingUnit } from '../api/stitchingUnits'
 import { schoolOrdersApi, type SchoolOrderSummary, type SchoolOrderDetail } from '../api/schoolOrders'
@@ -140,12 +141,12 @@ export default function CheckingDc() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="form-group">
               <label>School Order *</label>
-              <select value={form.schoolOrderId} onChange={e => onSchoolOrderChange(e.target.value)}>
-                <option value="">Select school order…</option>
-                {confirmedOrders.map(o => (
-                  <option key={o.id} value={o.id}>{o.orderNumber} — {o.schoolName}</option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={form.schoolOrderId}
+                onChange={onSchoolOrderChange}
+                placeholder="Select school order…"
+                options={confirmedOrders.map(o => ({ value: o.id, label: `${o.orderNumber} — ${o.schoolName}` }))}
+              />
             </div>
             <div className="form-group">
               <label>School</label>
@@ -159,10 +160,12 @@ export default function CheckingDc() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="form-group">
               <label>Stitching Unit *</label>
-              <select value={form.stitchingUnitId} onChange={e => setForm(p => ({ ...p, stitchingUnitId: e.target.value }))}>
-                <option value="">Select unit</option>
-                {units.map(u => <option key={u.id} value={u.id}>{u.unitName}</option>)}
-              </select>
+              <SearchableSelect
+                value={form.stitchingUnitId}
+                onChange={v => setForm(p => ({ ...p, stitchingUnitId: v }))}
+                placeholder="Select unit"
+                options={units.map(u => ({ value: u.id, label: u.unitName }))}
+              />
             </div>
             <div className="form-group">
               <label>Check Date *</label>

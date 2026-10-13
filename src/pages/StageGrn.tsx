@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import {
   stageGrnApi,
   type StageGrn,
@@ -196,18 +197,13 @@ export default function StageGrnPage() {
             </div>
             <div className="form-group">
               <label>Source DC *</label>
-              <select
+              <SearchableSelect
                 value={sourceId}
+                onChange={v => onSourceChange(sourceType, v)}
+                placeholder={`Select ${selectedSource?.label ?? 'DC'}`}
                 disabled={!sourceType}
-                onChange={e => onSourceChange(sourceType, e.target.value)}
-              >
-                <option value="">Select {selectedSource?.label ?? 'DC'}</option>
-                {sourceDcs.map(d => (
-                  <option key={d.id} value={d.id}>
-                    {d.dcNumber}{d.schoolName ? ` — ${d.schoolName}` : ''}
-                  </option>
-                ))}
-              </select>
+                options={sourceDcs.map(d => ({ value: d.id, label: `${d.dcNumber}${d.schoolName ? ` — ${d.schoolName}` : ''}` }))}
+              />
             </div>
             <div className="form-group">
               <label>Received Date *</label>

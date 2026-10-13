@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { dispatchApi, type DispatchEntry, type CreateDispatchRequest } from '../api/dispatch'
 import { schoolsApi, type School } from '../api/schools'
 import { schoolOrdersApi, type SchoolOrderSummary } from '../api/schoolOrders'
@@ -142,17 +143,21 @@ export default function Dispatch() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
             <div className="form-group">
               <label>School *</label>
-              <select value={form.schoolId} onChange={e => setForm(p => ({ ...p, schoolId: e.target.value }))}>
-                <option value="">Select school</option>
-                {schools.map(s => <option key={s.id} value={s.id}>{s.schoolName}</option>)}
-              </select>
+              <SearchableSelect
+                value={form.schoolId}
+                onChange={v => setForm(p => ({ ...p, schoolId: v }))}
+                placeholder="Select school"
+                options={schools.map(s => ({ value: s.id, label: s.schoolName }))}
+              />
             </div>
             <div className="form-group">
               <label>School Order <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
-              <select value={form.schoolOrderId ?? ''} onChange={e => setForm(p => ({ ...p, schoolOrderId: e.target.value || undefined }))}>
-                <option value="">None</option>
-                {confirmedOrders.map(o => <option key={o.id} value={o.id}>{o.orderNumber} — {o.schoolName}</option>)}
-              </select>
+              <SearchableSelect
+                value={form.schoolOrderId ?? ''}
+                onChange={v => setForm(p => ({ ...p, schoolOrderId: v || undefined }))}
+                placeholder="None"
+                options={confirmedOrders.map(o => ({ value: o.id, label: `${o.orderNumber} — ${o.schoolName}` }))}
+              />
             </div>
             <div className="form-group">
               <label>Dispatch Date *</label>
@@ -177,10 +182,12 @@ export default function Dispatch() {
           <div style={{ marginBottom: 8, fontWeight: 600, fontSize: 13 }}>Items</div>
           {form.items.map((line, idx) => (
             <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr auto', gap: 8, marginBottom: 8 }}>
-              <select value={line.styleId} onChange={e => updateLine(idx, { styleId: e.target.value })}>
-                <option value="">Style</option>
-                {styles.map(s => <option key={s.id} value={s.id}>{s.styleCode} — {s.styleName}</option>)}
-              </select>
+              <SearchableSelect
+                value={line.styleId}
+                onChange={v => updateLine(idx, { styleId: v })}
+                placeholder="Style"
+                options={styles.map(s => ({ value: s.id, label: `${s.styleCode} — ${s.styleName}` }))}
+              />
               <select value={line.gender} onChange={e => updateLine(idx, { gender: e.target.value })}>
                 <option value="BOYS">BOYS</option>
                 <option value="GIRLS">GIRLS</option>

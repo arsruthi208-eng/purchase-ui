@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { accessoryDcApi, type AccessoryDc, type CreateAccessoryDcRequest } from '../api/unitDc'
 import { stitchingUnitsApi, type StitchingUnit } from '../api/stitchingUnits'
 import { accessoriesApi, type Accessory } from '../api/accessories'
@@ -194,10 +195,12 @@ export default function AccessoryDcPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div className="form-group">
               <label>Stitching Unit *</label>
-              <select value={form.stitchingUnitId} onChange={e => setForm(p => ({ ...p, stitchingUnitId: e.target.value }))}>
-                <option value="">Select unit</option>
-                {units.map(u => <option key={u.id} value={u.id}>{u.unitName}</option>)}
-              </select>
+              <SearchableSelect
+                value={form.stitchingUnitId}
+                onChange={v => setForm(p => ({ ...p, stitchingUnitId: v }))}
+                placeholder="Select unit"
+                options={units.map(u => ({ value: u.id, label: u.unitName }))}
+              />
             </div>
             <div className="form-group">
               <label>Delivery Date *</label>
@@ -214,15 +217,12 @@ export default function AccessoryDcPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div className="form-group">
               <label>School Order <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
-              <select
+              <SearchableSelect
                 value={form.schoolOrderId ?? ''}
-                onChange={e => setForm(p => ({ ...p, schoolOrderId: e.target.value || undefined }))}
-              >
-                <option value="">None</option>
-                {confirmedOrders.map(o => (
-                  <option key={o.id} value={o.id}>{o.orderNumber} — {o.schoolName}</option>
-                ))}
-              </select>
+                onChange={v => setForm(p => ({ ...p, schoolOrderId: v || undefined }))}
+                placeholder="None"
+                options={confirmedOrders.map(o => ({ value: o.id, label: `${o.orderNumber} — ${o.schoolName}` }))}
+              />
             </div>
           </div>
 
@@ -236,13 +236,12 @@ export default function AccessoryDcPage() {
           <div style={{ maxHeight: 280, overflowY: 'auto', paddingRight: 4 }}>
             {form.items.map((line, idx) => (
               <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, marginBottom: 6, alignItems: 'center' }}>
-                <select
+                <SearchableSelect
                   value={line.accessoryId}
-                  onChange={e => updateLine(idx, { accessoryId: e.target.value })}
-                >
-                  <option value="">Select accessory</option>
-                  {accessories.map(a => <option key={a.id} value={a.id}>{a.accessoryCode} — {a.accessoryName}</option>)}
-                </select>
+                  onChange={v => updateLine(idx, { accessoryId: v })}
+                  placeholder="Select accessory"
+                  options={accessories.map(a => ({ value: a.id, label: `${a.accessoryCode} — ${a.accessoryName}` }))}
+                />
                 <input
                   type="number"
                   placeholder="Qty"

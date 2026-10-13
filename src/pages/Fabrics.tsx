@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { fabricsApi, type Fabric } from '../api/fabrics'
 import { schoolsApi, type School } from '../api/schools'
 import { purchasePartiesApi, type PurchaseParty } from '../api/purchaseParties'
@@ -171,17 +172,15 @@ export default function Fabrics() {
           </div>
           <div className="form-group">
             <label>Type *</label>
-            <select
+            <SearchableSelect
               value={form.fabricType}
-              onChange={e => {
-                setForm(p => ({ ...p, fabricType: e.target.value }))
-                if (e.target.value !== NEW_TYPE_SENTINEL) setCustomType('')
+              onChange={v => {
+                setForm(p => ({ ...p, fabricType: v }))
+                if (v !== NEW_TYPE_SENTINEL) setCustomType('')
               }}
-            >
-              <option value="">Select type</option>
-              {types.map(t => <option key={t} value={t}>{t}</option>)}
-              <option value={NEW_TYPE_SENTINEL}>＋ Add new type…</option>
-            </select>
+              placeholder="Select type"
+              options={[...types.map(t => ({ value: t, label: t })), { value: NEW_TYPE_SENTINEL, label: '＋ Add new type…' }]}
+            />
             {form.fabricType === NEW_TYPE_SENTINEL && (
               <input
                 style={{ marginTop: 6 }}
@@ -201,19 +200,15 @@ export default function Fabrics() {
           </div>
           <div className="form-group">
             <label>School</label>
-            <select
+            <SearchableSelect
               value=""
-              onChange={e => {
-                const id = e.target.value
+              onChange={id => {
                 if (!id || form.schoolIds.includes(id)) return
                 setForm(p => ({ ...p, schoolIds: [...p.schoolIds, id] }))
               }}
-            >
-              <option value="">Select school</option>
-              {schools.filter(s => !form.schoolIds.includes(s.id)).map(s => (
-                <option key={s.id} value={s.id}>{s.schoolName}</option>
-              ))}
-            </select>
+              placeholder="Select school"
+              options={schools.filter(s => !form.schoolIds.includes(s.id)).map(s => ({ value: s.id, label: s.schoolName }))}
+            />
             {form.schoolIds.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                 {form.schoolIds.map(id => {
@@ -235,13 +230,12 @@ export default function Fabrics() {
           </div>
           <div className="form-group">
             <label>Purchase Party</label>
-            <select
+            <SearchableSelect
               value={form.partyIds[0] ?? ''}
-              onChange={e => setForm(p => ({ ...p, partyIds: e.target.value ? [e.target.value] : [] }))}
-            >
-              <option value="">Select party</option>
-              {parties.map(p => <option key={p.id} value={p.id}>{p.partyName}</option>)}
-            </select>
+              onChange={v => setForm(p => ({ ...p, partyIds: v ? [v] : [] }))}
+              placeholder="Select party"
+              options={parties.map(p => ({ value: p.id, label: p.partyName }))}
+            />
           </div>
           <div className="form-group">
             <label>Composition ({shortUnit(form.unitOfMeasure)}/unit) *</label>

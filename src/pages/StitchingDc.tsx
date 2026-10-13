@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { stitchingDcApi, type StitchingDc, type CreateStitchingDcRequest } from '../api/stitchingDc'
 import { stitchingUnitsApi, type StitchingUnit } from '../api/stitchingUnits'
 import { cuttingApi, type CuttingOrder } from '../api/cutting'
@@ -152,21 +153,21 @@ export default function KajaButtonDc() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
             <div className="form-group">
               <label>Cutting Order *</label>
-              <select value={cuttingOrderId} onChange={e => onCuttingChange(e.target.value)}>
-                <option value="">Select cutting order</option>
-                {confirmedCuttings.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.cuttingNumber} — {c.schoolName}
-                  </option>
-                ))}
-              </select>
+              <SearchableSelect
+                value={cuttingOrderId}
+                onChange={onCuttingChange}
+                placeholder="Select cutting order"
+                options={confirmedCuttings.map(c => ({ value: c.id, label: `${c.cuttingNumber} — ${c.schoolName}` }))}
+              />
             </div>
             <div className="form-group">
               <label>Stitching Unit *</label>
-              <select value={stitchingUnitId} onChange={e => setStitchingUnitId(e.target.value)}>
-                <option value="">Select unit</option>
-                {units.map(u => <option key={u.id} value={u.id}>{u.unitName}</option>)}
-              </select>
+              <SearchableSelect
+                value={stitchingUnitId}
+                onChange={setStitchingUnitId}
+                placeholder="Select unit"
+                options={units.map(u => ({ value: u.id, label: u.unitName }))}
+              />
             </div>
           </div>
 

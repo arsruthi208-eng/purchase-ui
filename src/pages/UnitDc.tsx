@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { unitDcApi, type UnitDc, type CreateUnitDcRequest } from '../api/unitDc'
 import { cuttingApi, type CuttingOrder } from '../api/cutting'
 import { stitchingUnitsApi, type StitchingUnit } from '../api/stitchingUnits'
@@ -175,20 +176,22 @@ export default function UnitDc() {
           )}
           <div className="form-group">
             <label>Cutting Order *</label>
-            <select value={form.cuttingOrderId} onChange={e => onCuttingChange(e.target.value)}>
-              <option value="">Select cutting order</option>
-              {cuttings.filter(c => c.status === 'CONFIRMED').map(c =>
-                <option key={c.id} value={c.id}>{c.cuttingNumber} — {c.schoolName}</option>
-              )}
-            </select>
+            <SearchableSelect
+              value={form.cuttingOrderId}
+              onChange={onCuttingChange}
+              placeholder="Select cutting order"
+              options={cuttings.filter(c => c.status === 'CONFIRMED').map(c => ({ value: c.id, label: `${c.cuttingNumber} — ${c.schoolName}` }))}
+            />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="form-group">
               <label>Stitching Unit *</label>
-              <select value={form.stitchingUnitId} onChange={e => setForm(p => ({ ...p, stitchingUnitId: e.target.value }))}>
-                <option value="">Select unit</option>
-                {units.map(u => <option key={u.id} value={u.id}>{u.unitName}</option>)}
-              </select>
+              <SearchableSelect
+                value={form.stitchingUnitId}
+                onChange={v => setForm(p => ({ ...p, stitchingUnitId: v }))}
+                placeholder="Select unit"
+                options={units.map(u => ({ value: u.id, label: u.unitName }))}
+              />
             </div>
             <div className="form-group">
               <label>Delivery Date *</label>
