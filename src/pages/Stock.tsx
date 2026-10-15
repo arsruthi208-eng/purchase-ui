@@ -278,10 +278,11 @@ export default function Stock() {
   const [selectedItemId, setSelectedItemId] = useState('')   // referenceId for stats cards
   const [search, setSearch]                 = useState('')   // text search for balance table
   const [entriesSearch, setEntriesSearch]   = useState('')   // text search for entries table
+  const [selectedEntryItemId, setSelectedEntryItemId] = useState('') // referenceId filter for entries view
 
   // Reset filters whenever item type changes
   useEffect(() => {
-    setSelectedItemId(''); setSearch(''); setEntriesSearch('')
+    setSelectedItemId(''); setSearch(''); setEntriesSearch(''); setSelectedEntryItemId('')
     setShowForm(false); setEditingId(null)
   }, [itemType])
 
@@ -297,9 +298,11 @@ export default function Stock() {
   })
 
   const [sortEntriesDesc, setSortEntriesDesc] = useState(true)
-  const filteredEntries = entries.filter(e =>
-    !entriesSearch || e.referenceName.toLowerCase().includes(entriesSearch.toLowerCase())
-  )
+  const filteredEntries = entries.filter(e => {
+    if (selectedEntryItemId && e.referenceId !== selectedEntryItemId) return false
+    if (entriesSearch && !e.referenceName.toLowerCase().includes(entriesSearch.toLowerCase())) return false
+    return true
+  })
   const sortedEntries = [...filteredEntries].sort((a, b) =>
     sortEntriesDesc ? b.stockDate.localeCompare(a.stockDate) : a.stockDate.localeCompare(b.stockDate)
   )
@@ -339,6 +342,15 @@ export default function Stock() {
             value={selectedItemId}
             onChange={v => { setSelectedItemId(v); setSearch('') }}
             placeholder={`Select ${isFabric ? 'fabric' : 'accessory'} to view stats…`}
+            options={balances.map(b => ({ value: b.referenceId, label: b.referenceName }))}
+            style={{ minWidth: 280 }}
+          />
+        )}
+        {view === 'entries' && (
+          <SearchableSelect
+            value={selectedEntryItemId}
+            onChange={v => { setSelectedEntryItemId(v); setEntriesSearch('') }}
+            placeholder={`Filter by ${isFabric ? 'fabric' : 'accessory'}…`}
             options={balances.map(b => ({ value: b.referenceId, label: b.referenceName }))}
             style={{ minWidth: 280 }}
           />
