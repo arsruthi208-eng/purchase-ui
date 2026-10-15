@@ -466,7 +466,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                 <div key={idx} style={{ marginBottom: 10 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 0.8fr 0.9fr 0.9fr 0.8fr 0.8fr auto', gap: 8, alignItems: 'center' }}>
                     <SearchableSelect
-                      value={line.fabricId}
+                      value={line.fabricId ?? ''}
                       onChange={v => updateLine(idx, { fabricId: v })}
                       placeholder={form.purchasePartyId ? 'Fabric *' : 'Select purchase party first'}
                       disabled={!form.purchasePartyId}
