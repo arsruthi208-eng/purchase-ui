@@ -279,10 +279,11 @@ export default function Stock() {
   const [search, setSearch]                 = useState('')   // text search for balance table
   const [entriesSearch, setEntriesSearch]   = useState('')   // text search for entries table
   const [selectedEntryItemId, setSelectedEntryItemId] = useState('') // referenceId filter for entries view
+  const [fabricTypeFilter, setFabricTypeFilter] = useState('') // fabric type filter for entries view
 
   // Reset filters whenever item type changes
   useEffect(() => {
-    setSelectedItemId(''); setSearch(''); setEntriesSearch(''); setSelectedEntryItemId('')
+    setSelectedItemId(''); setSearch(''); setEntriesSearch(''); setSelectedEntryItemId(''); setFabricTypeFilter('')
     setShowForm(false); setEditingId(null)
   }, [itemType])
 
@@ -297,9 +298,15 @@ export default function Stock() {
     return true
   })
 
+  const fabricTypes = [...new Set(fabrics.map(f => f.fabricType).filter(Boolean))].sort()
+
   const [sortEntriesDesc, setSortEntriesDesc] = useState(true)
   const filteredEntries = entries.filter(e => {
     if (selectedEntryItemId && e.referenceId !== selectedEntryItemId) return false
+    if (fabricTypeFilter) {
+      const fab = fabrics.find(f => f.id === e.referenceId)
+      if (!fab || fab.fabricType !== fabricTypeFilter) return false
+    }
     if (entriesSearch && !e.referenceName.toLowerCase().includes(entriesSearch.toLowerCase())) return false
     return true
   })
@@ -354,6 +361,16 @@ export default function Stock() {
             options={balances.map(b => ({ value: b.referenceId, label: b.referenceName }))}
             style={{ minWidth: 280 }}
           />
+        )}
+        {view === 'entries' && isFabric && (
+          <select
+            value={fabricTypeFilter}
+            onChange={e => setFabricTypeFilter(e.target.value)}
+            style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 13 }}
+          >
+            <option value="">All types</option>
+            {fabricTypes.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
         )}
         <input
           placeholder={`Search ${isFabric ? 'fabric' : 'accessory'} name…`}
