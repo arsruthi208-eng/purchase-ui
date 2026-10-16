@@ -133,7 +133,7 @@ function RollBadgeList({ rolls, unitOfMeasure }: { rolls: { rollNumber: number; 
             <span key={`q-${r.rollNumber}`} style={{
               background: '#f1f5f9', color: '#1e293b',
               padding: '2px 8px', borderRadius: '0 4px 4px 0',
-              fontFamily: 'monospace', fontWeight: 600, fontSize: 12,
+              fontFamily: 'monospace', fontWeight: 600, fontSize: 14,
               borderLeft: '1px solid #cbd5e1',
               display: 'flex', alignItems: 'center',
             }}>
