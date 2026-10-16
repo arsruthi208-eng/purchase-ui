@@ -280,10 +280,11 @@ export default function Stock() {
   const [entriesSearch, setEntriesSearch]   = useState('')   // text search for entries table
   const [selectedEntryItemId, setSelectedEntryItemId] = useState('') // referenceId filter for entries view
   const [fabricTypeFilter, setFabricTypeFilter] = useState('') // fabric type filter for entries view
+  const [balanceFabricTypeFilter, setBalanceFabricTypeFilter] = useState('') // fabric type filter for balance view
 
   // Reset filters whenever item type changes
   useEffect(() => {
-    setSelectedItemId(''); setSearch(''); setEntriesSearch(''); setSelectedEntryItemId(''); setFabricTypeFilter('')
+    setSelectedItemId(''); setSearch(''); setEntriesSearch(''); setSelectedEntryItemId(''); setFabricTypeFilter(''); setBalanceFabricTypeFilter('')
     setShowForm(false); setEditingId(null)
   }, [itemType])
 
@@ -294,6 +295,10 @@ export default function Stock() {
 
   const filteredBalances = balances.filter(b => {
     if (selectedItemId && b.referenceId !== selectedItemId) return false
+    if (balanceFabricTypeFilter) {
+      const fab = fabrics.find(f => f.id === b.referenceId)
+      if (!fab || fab.fabricType !== balanceFabricTypeFilter) return false
+    }
     if (search && !b.referenceName.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
@@ -352,6 +357,16 @@ export default function Stock() {
             options={balances.map(b => ({ value: b.referenceId, label: b.referenceName }))}
             style={{ minWidth: 280 }}
           />
+        )}
+        {view === 'balance' && isFabric && (
+          <select
+            value={balanceFabricTypeFilter}
+            onChange={e => setBalanceFabricTypeFilter(e.target.value)}
+            style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 13 }}
+          >
+            <option value="">All types</option>
+            {fabricTypes.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
         )}
         {view === 'entries' && (
           <SearchableSelect
