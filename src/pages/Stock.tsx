@@ -103,17 +103,60 @@ function RollSubTable({
 /** Inline roll badge list shown in the entries view */
 function RollBadgeList({ rolls, unitOfMeasure }: { rolls: { rollNumber: number; quantityMeters: number; unitPrice: number }[]; unitOfMeasure: string }) {
   const unit = shortUnit(unitOfMeasure)
+  const [expanded, setExpanded] = useState(false)
+
   if (!rolls || rolls.length === 0) return <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
+
+  const COLLAPSE_THRESHOLD = 4
+  const visible = expanded ? rolls : rolls.slice(0, COLLAPSE_THRESHOLD)
+  const hidden  = rolls.length - COLLAPSE_THRESHOLD
+
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-      {rolls.map(r => (
-        <span key={r.rollNumber} style={{
-          fontSize: 11, padding: '2px 7px', background: '#dbeafe', color: '#1d4ed8',
-          borderRadius: 12, fontFamily: 'monospace', fontWeight: 600
-        }}>
-          #{r.rollNumber} · {r.quantityMeters.toFixed(2)} {unit}
-        </span>
-      ))}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      {/* Grid: Roll # | Qty — columns stay fixed across every row */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '40px 1fr',
+        gap: '2px 0',
+        fontSize: 12,
+      }}>
+        {visible.map(r => (
+          <>
+            <span key={`n-${r.rollNumber}`} style={{
+              background: 'var(--navy, #1e3a5f)', color: '#fff',
+              padding: '2px 6px', borderRadius: '4px 0 0 4px',
+              fontFamily: 'monospace', fontWeight: 700, fontSize: 11,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              R{r.rollNumber}
+            </span>
+            <span key={`q-${r.rollNumber}`} style={{
+              background: '#f1f5f9', color: '#1e293b',
+              padding: '2px 8px', borderRadius: '0 4px 4px 0',
+              fontFamily: 'monospace', fontWeight: 600, fontSize: 12,
+              borderLeft: '1px solid #cbd5e1',
+              display: 'flex', alignItems: 'center',
+            }}>
+              {r.quantityMeters.toFixed(2)}&thinsp;{unit}
+            </span>
+          </>
+        ))}
+      </div>
+
+      {/* Show all / collapse toggle */}
+      {rolls.length > COLLAPSE_THRESHOLD && (
+        <button
+          type="button"
+          onClick={() => setExpanded(p => !p)}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            padding: '1px 0', fontSize: 11, color: 'var(--navy)',
+            textAlign: 'left', textDecoration: 'underline', width: 'fit-content',
+          }}
+        >
+          {expanded ? 'Show less' : `+${hidden} more roll${hidden !== 1 ? 's' : ''}`}
+        </button>
+      )}
     </div>
   )
 }
@@ -306,6 +349,8 @@ export default function Stock() {
   const fabricTypes = [...new Set(fabrics.map(f => f.fabricType).filter(Boolean))].sort()
 
   const [sortEntriesDesc, setSortEntriesDesc] = useState(true)
+  const [sortByQtyDesc, setSortByQtyDesc]     = useState<boolean | null>(null) // null = not active
+
   const filteredEntries = entries.filter(e => {
     if (selectedEntryItemId && e.referenceId !== selectedEntryItemId) return false
     if (fabricTypeFilter) {
@@ -315,9 +360,11 @@ export default function Stock() {
     if (entriesSearch && !e.referenceName.toLowerCase().includes(entriesSearch.toLowerCase())) return false
     return true
   })
-  const sortedEntries = [...filteredEntries].sort((a, b) =>
-    sortEntriesDesc ? b.stockDate.localeCompare(a.stockDate) : a.stockDate.localeCompare(b.stockDate)
-  )
+  const sortedEntries = [...filteredEntries].sort((a, b) => {
+    // Qty sort takes priority when active
+    if (sortByQtyDesc !== null) return sortByQtyDesc ? b.quantity - a.quantity : a.quantity - b.quantity
+    return sortEntriesDesc ? b.stockDate.localeCompare(a.stockDate) : a.stockDate.localeCompare(b.stockDate)
+  })
 
   // Stats for the selected item (shown in summary cards only when one item is picked)
   const selectedItem = selectedItemId ? balances.find(b => b.referenceId === selectedItemId) : null
@@ -577,57 +624,69 @@ export default function Stock() {
             <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{filteredEntries.length} entr{filteredEntries.length !== 1 ? 'ies' : 'y'}</span>
           </div>
           {entriesLoading ? <div className="loading">Loading…</div> : (
-            <table>
+            <table style={{ tableLayout: 'fixed', width: '100%' }}>
               <thead>
                 <tr>
-                  <th>Item</th>
+                  <th style={{ width: '22%' }}>Item</th>
                   {isFabric
-                    ? <th>Rolls</th>
+                    ? <SortableTh
+                        label="Rolls"
+                        desc={sortByQtyDesc ?? true}
+                        onToggle={() => {
+                          setSortByQtyDesc(p => p === null ? true : p === true ? false : null)
+                          setSortEntriesDesc(true) // reset date sort
+                        }}
+                        style={{ width: '42%' }}
+                        title={sortByQtyDesc === null ? 'Click to sort by total quantity' : sortByQtyDesc ? 'Largest first — click for smallest first' : 'Smallest first — click to clear'}
+                      />
                     : <>
-                        <th style={{ textAlign: 'right' }}>Quantity</th>
-                        <th style={{ textAlign: 'right' }}>Unit Price</th>
-                        <th style={{ textAlign: 'right' }}>Total Value</th>
+                        <th style={{ width: '12%', textAlign: 'right' }}>Quantity</th>
+                        <th style={{ width: '12%', textAlign: 'right' }}>Unit Price</th>
+                        <th style={{ width: '14%', textAlign: 'right' }}>Total Value</th>
                       </>
                   }
-                  {isFabric && <th style={{ textAlign: 'right' }}>Total quantity</th>}
-                  <SortableTh label="Stock Date" desc={sortEntriesDesc} onToggle={() => setSortEntriesDesc(p => !p)} />
-                  <th>Notes</th>
-                  <th>Status</th>
+                  {isFabric && <th style={{ width: '12%', textAlign: 'right' }}>Total Qty</th>}
+                  <SortableTh label="Date" desc={sortEntriesDesc} onToggle={() => { setSortEntriesDesc(p => !p); setSortByQtyDesc(null) }} style={{ width: '10%' }} />
+                  <th style={{ width: '12%' }}>Notes</th>
+                  <th style={{ width: '8%' }}>Status</th>
                   <th style={{ width: 72 }}></th>
                 </tr>
               </thead>
               <tbody>
                 {filteredEntries.length === 0 ? (
                   <tr><td colSpan={isFabric ? 6 : 8}><div className="empty-state">{entries.length === 0 ? `No opening stock entries for ${itemType.toLowerCase()}` : 'No items match the search.'}</div></td></tr>
-                ) : sortedEntries.map(e => (
-                  <tr key={e.id}>
-                    <td style={{ fontWeight: 500 }}>{e.referenceName}</td>
-                    {isFabric
-                      ? <td><RollBadgeList rolls={e.rolls ?? []} unitOfMeasure={unitOf(e.referenceId)} /></td>
-                      : <>
-                          <td style={{ textAlign: 'right' }}>{e.quantity} {shortUnit(unitOf(e.referenceId))}</td>
-                          <td style={{ textAlign: 'right' }}>₹{e.unitPrice.toFixed(2)}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600 }}>₹{e.totalValue.toFixed(2)}</td>
-                        </>
-                    }
-                    {isFabric && (
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                        {e.quantity.toFixed(2)} {shortUnit(unitOf(e.referenceId))}
+                ) : sortedEntries.map(e => {
+                  const unit = shortUnit(unitOf(e.referenceId))
+                  return (
+                    <tr key={e.id} style={{ verticalAlign: 'top' }}>
+                      <td style={{ fontWeight: 500, paddingTop: 10 }}>{e.referenceName}</td>
+                      {isFabric
+                        ? <td style={{ paddingTop: 8, paddingBottom: 8 }}><RollBadgeList rolls={e.rolls ?? []} unitOfMeasure={unitOf(e.referenceId)} /></td>
+                        : <>
+                            <td style={{ textAlign: 'right', paddingTop: 10 }}>{e.quantity.toLocaleString()} {unit}</td>
+                            <td style={{ textAlign: 'right', paddingTop: 10 }}>₹{e.unitPrice.toFixed(2)}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 600, paddingTop: 10 }}>₹{e.totalValue.toFixed(2)}</td>
+                          </>
+                      }
+                      {isFabric && (
+                        <td style={{ textAlign: 'right', fontWeight: 700, paddingTop: 10, color: 'var(--navy)', fontFamily: 'monospace', fontSize: 13 }}>
+                          {e.quantity.toFixed(2)}&thinsp;{unit}
+                        </td>
+                      )}
+                      <td style={{ paddingTop: 10, fontSize: 13, color: 'var(--text-muted)' }}>{e.stockDate}</td>
+                      <td style={{ paddingTop: 10, color: 'var(--text-muted)', fontSize: 13 }}>{e.notes ?? '—'}</td>
+                      <td style={{ paddingTop: 8 }}><span className={`badge ${statusBadge(e.status)}`}>{e.status}</span></td>
+                      <td style={{ textAlign: 'center', paddingTop: 8 }}>
+                        <div className="flex gap-2" style={{ justifyContent: 'center' }}>
+                          <button className="btn-icon" title="Edit" onClick={() => openEdit(e)}><Pencil size={14} /></button>
+                          <button className="btn-icon" title="Delete entry" style={{ color: '#dc2626' }} onClick={evt => deleteStockEntry(e, evt)}>
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
-                    )}
-                    <td>{e.stockDate}</td>
-                    <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{e.notes ?? '—'}</td>
-                    <td><span className={`badge ${statusBadge(e.status)}`}>{e.status}</span></td>
-                    <td style={{ textAlign: 'center' }}>
-                      <div className="flex gap-2" style={{ justifyContent: 'center' }}>
-                        <button className="btn-icon" title="Edit" onClick={() => openEdit(e)}><Pencil size={14} /></button>
-                        <button className="btn-icon" title="Delete entry" style={{ color: '#dc2626' }} onClick={evt => deleteStockEntry(e, evt)}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           )}
