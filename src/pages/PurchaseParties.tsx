@@ -171,14 +171,13 @@ export default function PurchaseParties() {
               <tr>
                 <th>Party Name</th>
                 <th>Kind</th>
-                <th>Person Name</th>
                 <th>Status</th>
                 <th style={{ width: 90 }}></th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={5}><div className="empty-state">No purchase parties found</div></td></tr>
+                <tr><td colSpan={4}><div className="empty-state">No purchase parties found</div></td></tr>
               ) : filtered.map(b => (
                 <tr
                   key={b.id}
@@ -187,7 +186,6 @@ export default function PurchaseParties() {
                 >
                   <td style={{ fontWeight: 500 }}>{b.partyName}</td>
                   <td>{b.partyKind === 'ACCESSORY' ? 'Accessory' : 'Fabric'}</td>
-                  <td>{b.companyName ?? '—'}</td>
                   <td><span className={`badge ${statusBadge(b.status)}`}>{b.status}</span></td>
                   <td onClick={e => e.stopPropagation()}>
                     <div className="flex gap-2">
