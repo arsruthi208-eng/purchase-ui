@@ -370,9 +370,14 @@ export default function CuttingDetail() {
         {doc.items.map((item, idx) => {
           const curSelected = selectedIds[item.id] ?? item.rolls.map(r => r.id)
           const rolls        = editing ? (allRolls[item.id] ?? []) : (item.rolls ?? [])
-          const rollTotal    = editing
+          // In edit mode: show the sum of selected roll quantities as guidance so the user can
+          // see whether they have picked enough rolls to cover the requirement.
+          // In view mode: display item.fabricConsumed (qty × rate) — the authoritative value
+          // stored on the item, which is accurate even when a roll is shared across lines.
+          const selectedRollTotal = editing
             ? (allRolls[item.id] ?? []).filter(r => curSelected.includes(r.id)).reduce((s, r) => s + Number(r.quantityMeters), 0)
-            : item.rolls.reduce((s, r) => s + Number(r.quantityMeters), 0)
+            : 0
+          const displayConsumed = editing ? selectedRollTotal : item.fabricConsumed
           const unit = shortUnit(unitOf(item.fabricId))
 
           return (
@@ -432,7 +437,7 @@ export default function CuttingDetail() {
                 {/* Fabric consumed */}
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--navy)' }}>
-                    {rollTotal.toFixed(2)} {unit}
+                    {displayConsumed.toFixed(2)} {unit}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
                     {editing
@@ -504,7 +509,7 @@ export default function CuttingDetail() {
                         <tr style={{ background: '#f8fafc', borderTop: '2px solid var(--border)' }}>
                           <td style={{ padding: '9px 20px', fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total</td>
                           <td style={{ padding: '9px 20px', fontWeight: 700, fontSize: 14, color: 'var(--navy)' }}>
-                            {rollTotal.toFixed(2)}
+                            {displayConsumed.toFixed(2)}
                             <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>{unit}</span>
                           </td>
                           <td />

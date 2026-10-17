@@ -260,11 +260,27 @@ export default function Cutting() {
       const selectedRollIds = isSelected
         ? l.selectedRollIds.filter(id => id !== rollId)
         : [...l.selectedRollIds, rollId]
-      // Recalculate fabricConsumed from selected rolls
-      const fabricConsumed = l.availableRolls
-        .filter(r => selectedRollIds.includes(r.id))
-        .reduce((s, r) => s + r.quantityMeters, 0)
-      return { ...l, selectedRollIds, fabricConsumed: Math.round(fabricConsumed * 1000) / 1000 }
+      // fabricConsumed = qty × consumption rate (accurate per-line cut amount).
+      // This is correct for both kg-based and meter-based fabrics:
+      //   kg  : qty × 0.25 kg/pc  (one roll shared across all size lines)
+      //   meter: qty × 1.30 m/pc  (actual metres cut, not full roll length)
+      // If no rate is configured on the style, fall back to sum of roll quantities
+      // so the user is not blocked when rate is missing.
+      const rate = styleMapRef.current[l.styleId]?.fabricConsumptionRate
+      let fabricConsumed: number
+      if (rate && l.quantity > 0 && selectedRollIds.length > 0) {
+        fabricConsumed = Math.round(l.quantity * rate * 100) / 100
+      } else if (selectedRollIds.length === 0) {
+        fabricConsumed = 0
+      } else {
+        // Fallback: no rate configured — use sum of selected roll quantities
+        fabricConsumed = Math.round(
+          l.availableRolls
+            .filter(r => selectedRollIds.includes(r.id))
+            .reduce((s, r) => s + r.quantityMeters, 0) * 1000
+        ) / 1000
+      }
+      return { ...l, selectedRollIds, fabricConsumed }
     }))
   }
 
@@ -500,8 +516,8 @@ export default function Cutting() {
           <div style={{ maxHeight: 480, overflowY: 'auto' }}>
             {lines.map((line, idx) => (
               <div key={idx} style={{ marginBottom: 14, padding: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid var(--border)' }}>
-                {/* Row 1: Style, Fabric, Colour, Gender, Standard, Qty */}
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr 1fr auto', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+                {/* Row 1: Style, Fabric + Delete */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 6, alignItems: 'center', marginBottom: 6 }}>
                   <SearchableSelect
                     value={line.styleId}
                     onChange={v => updateLine(idx, { styleId: v })}
@@ -514,23 +530,29 @@ export default function Cutting() {
                     placeholder="Fabric…"
                     options={fabrics.map(f => ({ value: f.id, label: `${f.fabricCode} — ${f.fabricName}` }))}
                   />
+                  <button className="btn-icon" style={{ color: '#dc2626' }} title="Remove" disabled={lines.length === 1} onClick={() => removeLine(idx)}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                {/* Row 2: Colour, Gender, Standard, Qty — each with a hard minimum so they never clip */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(110px, 1.5fr) 100px minmax(90px, 1fr) 80px', gap: 6, alignItems: 'center', marginBottom: 8 }}>
                   <SearchableSelect
                     value={line.colourId ?? ''}
                     onChange={v => updateLine(idx, { colourId: v })}
                     placeholder="Colour"
                     options={colours.map(c => ({ value: c.id, label: c.colourName }))}
                   />
-                  <select value={line.gender} onChange={e => updateLine(idx, { gender: e.target.value })}>
+                  <select value={line.gender} onChange={e => updateLine(idx, { gender: e.target.value })}
+                    style={{ width: '100%' }}>
                     <option value="BOYS">BOYS</option>
                     <option value="GIRLS">GIRLS</option>
                     <option value="UNISEX">UNISEX</option>
                   </select>
-                  <input placeholder="Standard" value={line.standard} onChange={e => updateLine(idx, { standard: e.target.value })} />
+                  <input placeholder="Standard" value={line.standard} onChange={e => updateLine(idx, { standard: e.target.value })}
+                    style={{ width: '100%', minWidth: 0 }} />
                   <input type="number" placeholder="Qty" value={line.quantity || ''}
-                    onChange={e => updateLine(idx, { quantity: Number(e.target.value) })} />
-                  <button className="btn-icon" style={{ color: '#dc2626' }} title="Remove" disabled={lines.length === 1} onClick={() => removeLine(idx)}>
-                    <Trash2 size={14} />
-                  </button>
+                    onChange={e => updateLine(idx, { quantity: Number(e.target.value) })}
+                    style={{ width: '100%', minWidth: 0 }} />
                 </div>
 
                 {/* Row 2: Roll picker or fabric consumed display */}
