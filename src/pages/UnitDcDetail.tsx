@@ -104,7 +104,7 @@ export default function UnitDcDetail() {
             <tr>
               <th>Style</th>
               <th>Gender</th>
-              <th>Standard</th>
+              <th>Std / Size</th>
               <th style={{ textAlign: 'right' }}>Quantity</th>
               {editing && <th style={{ width: 36 }} />}
             </tr>
@@ -114,7 +114,7 @@ export default function UnitDcDetail() {
               <tr key={it.id}>
                 <td>{it.styleName}</td>
                 <td>{it.gender}</td>
-                <td>{it.standard}</td>
+                <td>{it.size || it.standard || '—'}</td>
                 <td style={{ textAlign: 'right', fontWeight: 800 }}>
                   {editing ? <input type="number" min="1" value={editQtys[it.id] ?? it.quantity} onChange={e => setEditQtys(q => ({ ...q, [it.id]: Number(e.target.value) }))} style={{ width: 80, textAlign: 'right', padding: '3px 6px', border: '1px solid var(--border)', borderRadius: 4 }} /> : it.quantity.toLocaleString()}
                 </td>

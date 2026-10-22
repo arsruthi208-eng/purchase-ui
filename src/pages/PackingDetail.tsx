@@ -72,7 +72,7 @@ export default function PackingDetail() {
         <table>
           <thead>
             <tr>
-              <th>#</th><th>Style</th><th>Accessory</th><th>Gender</th><th>Standard</th>
+              <th>#</th><th>Style</th><th>Accessory</th><th>Gender</th><th>Std / Size</th>
               <th style={{ textAlign: 'right' }}>Quantity</th>
             </tr>
           </thead>
@@ -83,7 +83,7 @@ export default function PackingDetail() {
                 <td style={{ fontWeight: 600 }}>{item.styleName}</td>
                 <td>{item.accessoryName}</td>
                 <td><span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 12, background: 'var(--off-white)', border: '1px solid var(--border)' }}>{item.gender}</span></td>
-                <td>{item.standard}</td>
+                <td>{item.size || item.standard || '—'}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--navy)' }}>{item.quantity.toLocaleString()}</td>
               </tr>
             ))}

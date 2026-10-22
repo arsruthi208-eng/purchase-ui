@@ -65,6 +65,7 @@ export default function UnitDc() {
         styleId: ci.styleId ?? '',
         gender: ci.gender,
         standard: ci.standard,
+        size: ci.size,
         quantity: ci.quantity,
       }))
       setForm(p => ({ ...p, items: autoItems.length > 0 ? autoItems : [emptyLine()] }))

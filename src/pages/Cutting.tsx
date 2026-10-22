@@ -23,6 +23,7 @@ interface LineState {
   colourId: string
   gender: string
   standard: string
+  size: string
   quantity: number
   fabricConsumed: number
   notes?: string
@@ -31,7 +32,7 @@ interface LineState {
 }
 
 const emptyLine = (): LineState => ({
-  styleId: '', fabricId: '', colourId: '', gender: 'BOYS', standard: '', quantity: 0,
+  styleId: '', fabricId: '', colourId: '', gender: 'BOYS', standard: '', size: '', quantity: 0,
   fabricConsumed: 0, availableRolls: [], selectedRollIds: [],
 })
 
@@ -300,6 +301,7 @@ export default function Cutting() {
           colourId: '',
           gender: item.gender,
           standard: item.standard,
+          size: item.size ?? '',
           quantity: item.quantity,
           fabricConsumed,
           availableRolls: [],
@@ -396,6 +398,7 @@ export default function Cutting() {
           colourId: l.colourId || undefined,
           gender: l.gender,
           standard: l.standard,
+          size: l.size || undefined,
           quantity: l.quantity,
           fabricConsumed: l.fabricConsumed,
           notes: l.notes,
@@ -534,8 +537,8 @@ export default function Cutting() {
                     <Trash2 size={14} />
                   </button>
                 </div>
-                {/* Row 2: Colour, Gender, Standard, Qty — each with a hard minimum so they never clip */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(110px, 1.5fr) 100px minmax(90px, 1fr) 80px', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+                {/* Row 2: Colour | Gender | Std | Size | Qty */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(110px, 1.5fr) 90px minmax(80px, 1fr) minmax(80px, 1fr) 75px', gap: 6, alignItems: 'center', marginBottom: 8 }}>
                   <SearchableSelect
                     value={line.colourId ?? ''}
                     onChange={v => updateLine(idx, { colourId: v })}
@@ -548,7 +551,9 @@ export default function Cutting() {
                     <option value="GIRLS">GIRLS</option>
                     <option value="UNISEX">UNISEX</option>
                   </select>
-                  <input placeholder="Standard" value={line.standard} onChange={e => updateLine(idx, { standard: e.target.value })}
+                  <input placeholder="Std" value={line.standard} onChange={e => updateLine(idx, { standard: e.target.value })}
+                    style={{ width: '100%', minWidth: 0 }} />
+                  <input placeholder="Size (M/L/XL)" value={line.size} onChange={e => updateLine(idx, { size: e.target.value })}
                     style={{ width: '100%', minWidth: 0 }} />
                   <input type="number" placeholder="Qty" value={line.quantity || ''}
                     onChange={e => updateLine(idx, { quantity: Number(e.target.value) })}

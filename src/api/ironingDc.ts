@@ -10,7 +10,7 @@ export interface IroningDc {
   deliveryDate: string
   status: string
   sentToPersonName?: string
-  items: { id: string; styleId: string; styleName: string; gender: string; standard: string; quantity: number }[]
+  items: { id: string; styleId: string; styleName: string; gender: string; standard: string; size?: string; quantity: number }[]
 }
 
 export interface CreateIroningDcRequest {
@@ -19,7 +19,7 @@ export interface CreateIroningDcRequest {
   deliveryDate: string
   notes?: string
   sentToPersonName?: string
-  items: { styleId: string; gender: string; standard: string; quantity: number; notes?: string }[]
+  items: { styleId: string; gender: string; standard: string; size?: string; quantity: number; notes?: string }[]
 }
 
 export interface UpdateIroningDcRequest {

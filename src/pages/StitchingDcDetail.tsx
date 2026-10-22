@@ -135,7 +135,7 @@ export default function StitchingDcDetail() {
         <table>
           <thead>
             <tr>
-              <th>#</th><th>Style</th><th>Gender</th><th>Standard</th>
+              <th>#</th><th>Style</th><th>Gender</th><th>Std / Size</th>
               <th style={{ textAlign: 'right' }}>Quantity</th>
               {editing && <th style={{ width: 36 }} />}
             </tr>
@@ -146,7 +146,7 @@ export default function StitchingDcDetail() {
                 <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{idx + 1}</td>
                 <td style={{ fontWeight: 600 }}>{item.styleName}</td>
                 <td><span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 12, background: 'var(--off-white)', border: '1px solid var(--border)' }}>{item.gender}</span></td>
-                <td>{item.standard}</td>
+                <td>{item.size || item.standard || '—'}</td>
                 <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--navy)' }}>
                   {editing
                     ? <input type="number" min="1" value={editQtys[item.id] ?? item.quantity} onChange={e => setEditQtys(q => ({ ...q, [item.id]: Number(e.target.value) }))} style={{ width: 80, textAlign: 'right', padding: '3px 6px', border: '1px solid var(--border)', borderRadius: 4 }} />

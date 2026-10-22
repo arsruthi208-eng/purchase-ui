@@ -6,7 +6,7 @@ export interface PackingEntry {
   schoolName: string
   packingDate: string
   status: string
-  items: { id: string; styleName: string; accessoryName: string; gender: string; standard: string; quantity: number }[]
+  items: { id: string; styleName: string; accessoryName: string; gender: string; standard: string; size?: string; quantity: number }[]
 }
 
 export interface CreatePackingRequest {
@@ -14,7 +14,7 @@ export interface CreatePackingRequest {
   schoolOrderId?: string
   packingDate: string
   notes?: string
-  items: { styleId: string; accessoryId: string; gender: string; standard: string; quantity: number; notes?: string }[]
+  items: { styleId: string; accessoryId: string; gender: string; standard: string; size?: string; quantity: number; notes?: string }[]
 }
 
 export const packingApi = {

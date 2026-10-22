@@ -78,6 +78,7 @@ export default function Packing() {
         accessoryId: '',
         gender: item.gender,
         standard: item.standard,
+        size: item.size,
         quantity: item.quantity,
       }))
       setLockedSchoolId(detail.schoolId)
@@ -219,7 +220,8 @@ export default function Packing() {
                 <option value="GIRLS">GIRLS</option>
                 <option value="UNISEX">UNISEX</option>
               </select>
-              <input placeholder="Standard" value={line.standard} onChange={e => updateLine(idx, { standard: e.target.value })} />
+              <input placeholder="Std" value={line.standard} onChange={e => updateLine(idx, { standard: e.target.value })} />
+              <input placeholder="Size (M/L/XL)" value={line.size ?? ''} onChange={e => updateLine(idx, { size: e.target.value || undefined })} />
               <input type="number" placeholder="Qty" value={line.quantity || ''} onChange={e => updateLine(idx, { quantity: Number(e.target.value) })} />
               <button
                 className="btn-icon"

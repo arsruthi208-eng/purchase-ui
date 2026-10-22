@@ -12,7 +12,7 @@ export interface StitchingDc {
   deliveryDate: string
   status: string
   sentToPersonName?: string
-  items: { id: string; styleId: string; styleName: string; gender: string; standard: string; quantity: number }[]
+  items: { id: string; styleId: string; styleName: string; gender: string; standard: string; size?: string; quantity: number }[]
   kajaConsumption: { id: string; accessoryName: string; quantity: number; unitOfMeasure: string }[]
 }
 
@@ -24,7 +24,7 @@ export interface CreateStitchingDcRequest {
   deliveryDate: string
   notes?: string
   sentToPersonName?: string
-  items?: { styleId: string; gender: string; standard: string; quantity: number; notes?: string }[]
+  items?: { styleId: string; gender: string; standard: string; size?: string; quantity: number; notes?: string }[]
   kajaConsumption: { accessoryId: string; quantity: number; unitOfMeasure?: string; notes?: string }[]
 }
 

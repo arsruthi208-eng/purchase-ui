@@ -10,6 +10,7 @@ export interface CuttingItem {
   colourName?: string
   gender: string
   standard: string
+  size?: string
   quantity: number
   fabricConsumed: number
   /** Metres per piece from the style's fabricConsumptionRate */
@@ -37,6 +38,7 @@ export interface CreateCuttingItemRequest {
   colourId?: string
   gender: string
   standard: string
+  size?: string
   quantity: number
   fabricConsumed: number
   notes?: string

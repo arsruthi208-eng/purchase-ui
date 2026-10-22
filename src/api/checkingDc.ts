@@ -10,7 +10,7 @@ export interface CheckingDc {
   checkDate: string
   status: string
   sentToPersonName?: string
-  items: { id: string; styleId: string; styleName: string; gender: string; standard: string; quantity: number }[]
+  items: { id: string; styleId: string; styleName: string; gender: string; standard: string; size?: string; quantity: number }[]
 }
 
 export interface CreateCheckingDcRequest {
@@ -19,7 +19,7 @@ export interface CreateCheckingDcRequest {
   checkDate: string
   notes?: string
   sentToPersonName?: string
-  items: { styleId: string; gender: string; standard: string; quantity: number; notes?: string }[]
+  items: { styleId: string; gender: string; standard: string; size?: string; quantity: number; notes?: string }[]
 }
 
 export interface UpdateCheckingDcRequest {

@@ -415,9 +415,10 @@ export default function CuttingDetail() {
                   <span style={{ fontSize: 11, padding: '2px 10px', background: '#f1f5f9', color: '#374151', borderRadius: 20, fontWeight: 600 }}>
                     {item.gender}
                   </span>
-                  <span style={{ fontSize: 11, padding: '2px 10px', background: '#f1f5f9', color: '#374151', borderRadius: 20, fontWeight: 600 }}>
-                    Std: {item.standard}
-                  </span>
+                  {item.size
+                    ? <span style={{ fontSize: 11, padding: '2px 10px', background: '#f1f5f9', color: '#374151', borderRadius: 20, fontWeight: 600 }}>Size: {item.size}</span>
+                    : <span style={{ fontSize: 11, padding: '2px 10px', background: '#f1f5f9', color: '#374151', borderRadius: 20, fontWeight: 600 }}>Std: {item.standard}</span>
+                  }
                 </div>
 
                 {/* Qty */}
