@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 export interface SelectOption {
   value: string
@@ -15,10 +16,18 @@ interface Props {
   className?: string
 }
 
+interface DropdownPos {
+  top: number
+  left: number
+  width: number
+}
+
 export function SearchableSelect({ value, onChange, options, placeholder = 'Select…', disabled, style, className }: Props) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [dropdownPos, setDropdownPos] = useState<DropdownPos>({ top: 0, left: 0, width: 0 })
   const containerRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const selected = options.find(o => o.value === value)
@@ -27,11 +36,14 @@ export function SearchableSelect({ value, onChange, options, placeholder = 'Sele
     ? options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()))
     : options
 
-  // Close on outside click
+  // Close on outside click — handles both the trigger and the portalled dropdown
   useEffect(() => {
     if (!open) return
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      const inTrigger = containerRef.current?.contains(target)
+      const inDropdown = dropdownRef.current?.contains(target)
+      if (!inTrigger && !inDropdown) {
         setOpen(false)
         setQuery('')
       }
@@ -42,6 +54,17 @@ export function SearchableSelect({ value, onChange, options, placeholder = 'Sele
 
   const handleOpen = () => {
     if (disabled) return
+    // Calculate fixed position from trigger's viewport rect so the portal
+    // dropdown escapes any overflow:auto ancestor completely.
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (rect) {
+      const maxDropdownH = 344
+      const spaceBelow = window.innerHeight - rect.bottom
+      const top = spaceBelow >= 200
+        ? rect.bottom + 4        // open downward (normal case)
+        : rect.top - maxDropdownH  // flip upward when near bottom of screen
+      setDropdownPos({ top, left: rect.left, width: rect.width })
+    }
     setOpen(true)
     setQuery('')
     setTimeout(() => inputRef.current?.focus(), 0)
@@ -111,16 +134,27 @@ export function SearchableSelect({ value, onChange, options, placeholder = 'Sele
         }}>▼</span>
       </div>
 
-      {/* Dropdown */}
-      {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 9999,
-          background: 'var(--white)', border: '1.5px solid var(--border)',
-          borderRadius: 'var(--radius)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-          maxHeight: 220, display: 'flex', flexDirection: 'column',
-        }}>
+      {/* Dropdown — rendered via portal so it escapes overflow:auto ancestors */}
+      {open && createPortal(
+        <div
+          ref={dropdownRef}
+          style={{
+            position: 'fixed',
+            top: dropdownPos.top,
+            left: dropdownPos.left,
+            width: dropdownPos.width,
+            zIndex: 9999,
+            background: 'var(--white)',
+            border: '1.5px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            maxHeight: 340,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           {/* Search input */}
-          <div style={{ padding: '6px 8px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
             <input
               ref={inputRef}
               value={query}
@@ -128,22 +162,25 @@ export function SearchableSelect({ value, onChange, options, placeholder = 'Sele
               placeholder="Type to search…"
               onClick={e => e.stopPropagation()}
               style={{
-                width: '100%', padding: '5px 8px', border: '1px solid var(--border)',
-                borderRadius: 4, fontSize: 13, outline: 'none', boxSizing: 'border-box',
+                width: '100%', padding: '8px 10px', border: '1.5px solid var(--border)',
+                borderRadius: 6, fontSize: 14, outline: 'none', boxSizing: 'border-box',
+                fontFamily: 'inherit', color: 'var(--text-main)',
               }}
+              onFocus={e => (e.currentTarget.style.borderColor = 'var(--navy)')}
+              onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
             />
           </div>
           {/* Options */}
           <div style={{ overflowY: 'auto', flex: 1 }}>
             {filtered.length === 0 ? (
-              <div style={{ padding: '10px 12px', fontSize: 13, color: 'var(--text-muted)' }}>No options</div>
+              <div style={{ padding: '12px 14px', fontSize: 14, color: 'var(--text-muted)' }}>No options</div>
             ) : (
               filtered.map(opt => (
                 <div
                   key={opt.value}
                   onMouseDown={() => handleSelect(opt)}
                   style={{
-                    padding: '8px 12px', fontSize: 14, cursor: 'pointer',
+                    padding: '10px 14px', fontSize: 14, cursor: 'pointer',
                     background: opt.value === value ? 'var(--off-white, #f3f4f6)' : 'transparent',
                     fontWeight: opt.value === value ? 600 : 400,
                     color: 'var(--text-main)',
@@ -157,7 +194,8 @@ export function SearchableSelect({ value, onChange, options, placeholder = 'Sele
               ))
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
