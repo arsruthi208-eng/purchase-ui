@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Plus, Pencil, Trash2 } from '../icons'
+import { useAuth } from '../context/AuthContext'
 import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { fabricsApi, type Fabric } from '../api/fabrics'
 import { schoolsApi, type School } from '../api/schools'
@@ -29,6 +30,8 @@ const empty: FabricForm = {
 const NEW_TYPE_SENTINEL = '__NEW__'
 
 export default function Fabrics() {
+  const { user } = useAuth()
+  const role = user?.role ?? ''
   const [fabrics, setFabrics] = useState<Fabric[]>([])
   const [types, setTypes] = useState<string[]>([])
   const [schools, setSchools] = useState<School[]>([])
@@ -333,7 +336,9 @@ export default function Fabrics() {
                   <td>
                     <div className="flex gap-2">
                       <button className="btn-icon" title="Edit" onClick={() => openEdit(f)}><Pencil size={14} /></button>
-                      <button className="btn-icon" title="Deactivate" onClick={() => deactivate(f.id)}><Trash2 size={14} /></button>
+                      {role !== 'PURCHASER' && (
+                        <button className="btn-icon" title="Deactivate" onClick={() => deactivate(f.id)}><Trash2 size={14} /></button>
+                      )}
                     </div>
                   </td>
                 </tr>

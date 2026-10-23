@@ -4,8 +4,11 @@ import { schoolsApi, type School, type CreateSchoolRequest } from '../api/school
 import { LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
+import { useAuth } from '../context/AuthContext'
 
 export default function Schools() {
+  const { user } = useAuth()
+  const role = user?.role ?? ''
   const [schools, setSchools] = useState<School[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -138,7 +141,9 @@ export default function Schools() {
                   <td>
                     <div className="flex gap-2">
                       <button className="btn-icon" title="Edit" onClick={() => openEdit(s)}><Pencil size={14} /></button>
-                      <button className="btn-icon" title="Deactivate" onClick={() => deactivate(s.id)}><Trash2 size={14} /></button>
+                      {role !== 'PURCHASER' && (
+                        <button className="btn-icon" title="Deactivate" onClick={() => deactivate(s.id)}><Trash2 size={14} /></button>
+                      )}
                     </div>
                   </td>
                 </tr>

@@ -56,7 +56,7 @@ const ALL_NAV: NavItem[] = [
 
   { section: 'Masters' },
   { to: '/schools',          icon: School,  label: 'Schools',           color: '#0d9488',
-    roles: ['ADMIN','STOCK_INCHARGE','PACKING_INCHARGE'] },
+    roles: ['ADMIN','PURCHASER','STOCK_INCHARGE','PACKING_INCHARGE'] },
   { to: '/purchase-parties', icon: Users,   label: 'Purchase Parties',  color: '#7c3aed',
     roles: ['ADMIN','PURCHASER','STOCK_INCHARGE'] },
   { to: '/colours',          icon: Palette, label: 'Colours',           color: '#db2777',

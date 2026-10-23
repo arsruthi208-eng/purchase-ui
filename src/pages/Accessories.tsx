@@ -6,6 +6,7 @@ import { purchasePartiesApi, type PurchaseParty } from '../api/purchaseParties'
 import { Modal, FormError, FormActions, statusBadge, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
+import { useAuth } from '../context/AuthContext'
 
 const UOMS = ['PCS', 'METER', 'KG', 'CONE'] as const
 
@@ -14,6 +15,8 @@ const empty: CreateAccessoryRequest = {
 }
 
 export default function Accessories() {
+  const { user } = useAuth()
+  const role = user?.role ?? ''
   const [items, setItems] = useState<Accessory[]>([])
   const [types, setTypes] = useState<AccessoryType[]>([])
   const [parties, setParties] = useState<PurchaseParty[]>([])
@@ -196,7 +199,9 @@ export default function Accessories() {
                   <td>
                     <div className="flex gap-2">
                       <button className="btn-icon" title="Edit" onClick={() => openEdit(a)}><Pencil size={14} /></button>
-                      <button className="btn-icon" title="Deactivate" onClick={() => deactivate(a.id)}><Trash2 size={14} /></button>
+                      {role !== 'PURCHASER' && (
+                        <button className="btn-icon" title="Deactivate" onClick={() => deactivate(a.id)}><Trash2 size={14} /></button>
+                      )}
                     </div>
                   </td>
                 </tr>

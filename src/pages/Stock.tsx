@@ -9,6 +9,7 @@ import { Modal, FormError, FormActions, SummaryCard, statusBadge, today, Sortabl
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 import { shortUnit, unitWord } from '../utils/units'
+import { useAuth } from '../context/AuthContext'
 
 const ITEM_TYPES = ['FABRIC', 'ACCESSORY'] as const
 const VIEWS = ['balance', 'entries'] as const
@@ -162,6 +163,8 @@ function RollBadgeList({ rolls, unitOfMeasure }: { rolls: { rollNumber: number; 
 }
 
 export default function Stock() {
+  const { user } = useAuth()
+  const role = user?.role ?? ''
   const [view, setView] = useState<View>('balance')
   const [itemType, setItemType] = useState<string>('FABRIC')
 
@@ -679,9 +682,11 @@ export default function Stock() {
                       <td style={{ textAlign: 'center', paddingTop: 8 }}>
                         <div className="flex gap-2" style={{ justifyContent: 'center' }}>
                           <button className="btn-icon" title="Edit" onClick={() => openEdit(e)}><Pencil size={14} /></button>
-                          <button className="btn-icon" title="Delete entry" style={{ color: '#dc2626' }} onClick={evt => deleteStockEntry(e, evt)}>
-                            <Trash2 size={14} />
-                          </button>
+                          {role !== 'PURCHASER' && (
+                            <button className="btn-icon" title="Delete entry" style={{ color: '#dc2626' }} onClick={evt => deleteStockEntry(e, evt)}>
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
