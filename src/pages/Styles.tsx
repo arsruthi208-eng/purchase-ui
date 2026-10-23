@@ -6,10 +6,13 @@ import { schoolsApi, type School } from '../api/schools'
 import { Modal, FormError, FormActions, statusBadge, LoadError, FilterBar } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
+import { useAuth } from '../context/AuthContext'
 
 const emptyCreate: CreateStyleRequest = { styleCode: '', styleName: '', pattern: '', fabricConsumptionRate: undefined, schoolIds: [] }
 
 export default function Styles() {
+  const { user } = useAuth()
+  const role = user?.role ?? ''
   const [items, setItems] = useState<Style[]>([])
   const [patterns, setPatterns] = useState<string[]>([])
   const [schools, setSchools] = useState<School[]>([])
@@ -342,7 +345,9 @@ export default function Styles() {
                   <td>
                     <div className="flex gap-2">
                       <button className="btn-icon" title="Edit" onClick={() => openEdit(s)}><Pencil size={14} /></button>
-                      <button className="btn-icon" title="Deactivate" onClick={() => deactivate(s.id)}><Trash2 size={14} /></button>
+                      {role !== 'PURCHASER' && (
+                        <button className="btn-icon" title="Deactivate" onClick={() => deactivate(s.id)}><Trash2 size={14} /></button>
+                      )}
                     </div>
                   </td>
                 </tr>
