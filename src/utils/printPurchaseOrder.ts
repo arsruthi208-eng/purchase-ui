@@ -1,10 +1,13 @@
 import type { PoDetail } from '../api/purchaseOrders'
 import logoSrc from '../assets/apple-uniformm-logo.png'
 import { shortUnit, sharedUnitSuffix } from './units'
+import { downloadAsImage } from './downloadAsImage'
 
 const COMPANY_GST = '33AAGCA5247H1Z6'
-const COMPANY_ADDRESS =
-  '3/190-A, Akkarai negamam II cross, Konamoolai (Po), Sathyamangalam – 638 402. Erode Dt.'
+const COMPANY_ADDRESS = `
+  3/190-A, Akkarai Negamam II Cross, Konamoolai (Po), Mettupalayam Road, Sathyamangalam,<br>
+  Erode Dt., Pincode: 638 402<br>
+`;
 const DEFAULT_DELIVERY =
   `Apple Uniformm, ${COMPANY_ADDRESS}`
 
@@ -197,9 +200,9 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
          <div class="brand-tag">Manufacturers of School &amp; College Uniform</div>
        </div>`
 
-  const icoPin = `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="#c4161c" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>`
-  const icoMail = `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="#c4161c" d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4-8 5L4 8V6l8 5 8-5z"/></svg>`
-  const icoWeb = `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="#c4161c" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-3.2a15.4 15.4 0 0 0-1.3-3.6A8.04 8.04 0 0 1 18.9 8zM12 4c.8 1.1 1.5 2.5 1.9 4H10.1C10.5 6.5 11.2 5.1 12 4zM4.3 14a8.1 8.1 0 0 1 0-4h3.6a16.6 16.6 0 0 0-.1 4H4.3zm.8 2h3.2c.3 1.3.7 2.5 1.3 3.6A8.04 8.04 0 0 1 5.1 16zM8.1 8H4.9A8.04 8.04 0 0 1 8.1 4.4 15.4 15.4 0 0 0 8.1 8zM12 20c-.8-1.1-1.5-2.5-1.9-4h3.8c-.4 1.5-1.1 2.9-1.9 4zm2.4-6H9.6a14.7 14.7 0 0 1 .1-4h6.6a14.7 14.7 0 0 1 .1 4zm.3 2c-.3 1.3-.7 2.5-1.3 3.6A8.04 8.04 0 0 0 18.9 16h-3.2zM15.9 8c.4-1.3.9-2.5 1.3-3.6A8.04 8.04 0 0 1 19.1 8h-3.2zM19.7 14h-3.6a16.6 16.6 0 0 0 .1-4h3.5a8.1 8.1 0 0 1 0 4z"/></svg>`
+  const icoPin = `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="#1b7a3d" d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>`
+  const icoMail = `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="#1b7a3d" d="M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4-8 5L4 8V6l8 5 8-5z"/></svg>`
+  const icoWeb = `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="#1b7a3d" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-3.2a15.4 15.4 0 0 0-1.3-3.6A8.04 8.04 0 0 1 18.9 8zM12 4c.8 1.1 1.5 2.5 1.9 4H10.1C10.5 6.5 11.2 5.1 12 4zM4.3 14a8.1 8.1 0 0 1 0-4h3.6a16.6 16.6 0 0 0-.1 4H4.3zm.8 2h3.2c.3 1.3.7 2.5 1.3 3.6A8.04 8.04 0 0 1 5.1 16zM8.1 8H4.9A8.04 8.04 0 0 1 8.1 4.4 15.4 15.4 0 0 0 8.1 8zM12 20c-.8-1.1-1.5-2.5-1.9-4h3.8c-.4 1.5-1.1 2.9-1.9 4zm2.4-6H9.6a14.7 14.7 0 0 1 .1-4h6.6a14.7 14.7 0 0 1 .1 4zm.3 2c-.3 1.3-.7 2.5-1.3 3.6A8.04 8.04 0 0 0 18.9 16h-3.2zM15.9 8c.4-1.3.9-2.5 1.3-3.6A8.04 8.04 0 0 1 19.1 8h-3.2zM19.7 14h-3.6a16.6 16.6 0 0 0 .1-4h3.5a8.1 8.1 0 0 1 0 4z"/></svg>`
 
   const deliveryDate = po.expectedDeliveryDate
     ? `On or before ${fmtDate(po.expectedDeliveryDate)}`
@@ -242,18 +245,22 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
     }
     .brand { flex: 0 0 auto; }
     .brand-logo { height: 54px; width: auto; object-fit: contain; display: block; }
-    .brand-name { font-size: 24px; font-weight: 800; color: #c4161c; letter-spacing: -0.3px; }
+    .brand-name { font-size: 24px; font-weight: 800; color: #1b5e20; letter-spacing: -0.3px; }
     .brand-tag { font-size: 11px; font-weight: 600; color: #222; margin-top: 2px; }
     .vdiv { width: 1px; align-self: stretch; background: #bbb; flex-shrink: 0; }
-    .contact { flex: 1; display: flex; flex-direction: column; gap: 5px; font-size: 11.5px; line-height: 1.3; color: #222; }
+    .contact { flex: 1; display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 500; line-height: 1.4; color: #222; }
+    .contact .bold {
+      font-weight: 700;
+      font-size: 14px;
+    }
     .c-row { display: flex; align-items: flex-start; gap: 8px; }
     .ico { width: 13px; height: 13px; flex-shrink: 0; margin-top: 1px; }
     .gst {
       flex-shrink: 0;
       align-self: flex-start;
-      border: 1px solid #e7b4b4;
-      background: linear-gradient(90deg, #f8d0d0 0, #fceeee 18%, #fff 40%);
-      color: #c4161c;
+      border: 1px solid #a8d5b5;
+      background: linear-gradient(90deg, #d0f0da 0, #eefff2 18%, #fff 40%);
+      color: #1b5e20;
       font-weight: 800;
       font-size: 12.5px;
       padding: 7px 10px;
@@ -265,17 +272,17 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin: 2px 0 8px;
+      margin: 12px 0 10px;
       flex-shrink: 0;
     }
     .title-row::before, .title-row::after {
       content: '';
       flex: 1;
       height: 2px;
-      background: #c4161c;
+      background: #1b7a3d;
     }
     .t-pill {
-      background: #c4161c;
+      background: #1b7a3d;
       color: #fff;
       font-weight: 800;
       letter-spacing: 0.06em;
@@ -287,6 +294,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
 
     .meta-wrap { display: flex; border: 1px solid #bdbdbd; margin-bottom: 8px; flex-shrink: 0; }
     .meta-box { flex: 1; padding: 7px 12px; }
+    .meta-box:first-child { flex: 0 0 32%; }
     .meta-box + .meta-box { border-left: 1px solid #bdbdbd; }
     .meta-line { display: flex; gap: 8px; padding: 3px 0; font-size: 12.5px; }
     .meta-lbl { font-weight: 700; min-width: 168px; color: #222; }
@@ -296,9 +304,9 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
     .items-tbl { margin-bottom: 8px; font-size: 12.5px; flex-shrink: 0; }
     .items-tbl th {
       border: 1px solid #999; padding: 6px 6px; font-weight: 700;
-      background: #f0f0f0; text-align: left; font-size: 11.5px;
+      background: #c8e6c9; text-align: left; font-size: 11.5px;
     }
-    .items-tbl td { border: 1px solid #bbb; padding: 6px 6px; }
+    .items-tbl td { border: 1px solid #bbb; padding: 6px 6px; font-weight: 600; }
     .item-row td { height: 48px; padding: 12px 8px; font-size: 13px; }
     .sku { font-size: 11px; color: #555; margin-top: 4px; }
     .total-row td { font-weight: 700; background: #f5f5f5; padding: 7px 8px; font-size: 12.5px; }
@@ -322,7 +330,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
     .acc-sheet .terms-box { padding: 18px 12px 12px; }
 
     .info-tbl { margin-bottom: 8px; font-size: 12.5px; flex-shrink: 0; }
-    .info-tbl td { border: 1px solid #bbb; padding: 7px 10px; }
+    .info-tbl td { border: 1px solid #bbb; padding: 7px 10px; font-weight: 600; }
     .info-lbl { font-weight: 700; background: #f5f5f5; width: 210px; }
 
     .swatch {
@@ -351,7 +359,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
       position: absolute;
       top: -11px;
       left: 0;
-      background: #c4161c;
+      background: #1b7a3d;
       color: #fff;
       font-size: 12px;
       font-weight: 800;
@@ -388,7 +396,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
       color: #163a66;
     }
     .sig + .sig { border-left: 1px solid #7eb6d9; }
-    .sig-role { font-weight: 800; font-size: 12px; color: #c4161c; margin-bottom: 4px; }
+    .sig-role { font-weight: 800; font-size: 12px; color: #1b5e20; margin-bottom: 4px; }
     .sig-img { height: 52px; max-width: 100%; object-fit: contain; display: block; margin: 2px 0 4px; }
     .sig-space { height: 52px; }
     .sig-rule { border-top: 1.5px solid #2a6aa3; margin-top: 4px; }
@@ -410,9 +418,9 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
     <div class="brand">${logoHtml}</div>
     <div class="vdiv"></div>
     <div class="contact">
-      <div class="c-row">${icoPin}<span>${COMPANY_ADDRESS}</span></div>
-      <div class="c-row">${icoMail}<span>appleuniformm@gmail.com</span></div>
-      <div class="c-row">${icoWeb}<span>www.appleuniformm.com</span></div>
+      <div class="c-row">${icoPin}<span class="bold">${COMPANY_ADDRESS}</span></div>
+      <div class="c-row">${icoMail}<span class="bold">appleuniformm@gmail.com</span></div>
+      <div class="c-row">${icoWeb}<span class="bold">www.appleuniformm.com</span></div>
     </div>
     <div class="gst">GST No : ${COMPANY_GST}</div>
   </div>
@@ -500,4 +508,10 @@ export async function printPurchaseOrder(po: PoDetail): Promise<void> {
   printWindow.document.open()
   printWindow.document.write(html)
   printWindow.document.close()
+}
+
+export async function downloadPoAsImage(po: PoDetail): Promise<void> {
+  const logo = await getLogoDataUrl()
+  const html = buildPoHtml(po, logo)
+  await downloadAsImage(po.poNumber, html)
 }

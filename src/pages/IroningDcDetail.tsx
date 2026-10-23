@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Trash2 } from '../icons'
 import { ironingDcApi, type IroningDc } from '../api/ironingDc'
-import { printIroningDc } from '../utils/printDc'
+import { printIroningDc, downloadIroningDcAsImage } from '../utils/printDc'
+import { Download } from '../icons'
 import { useApiData } from '../hooks/useApiData'
 import { BackButton, InfoRow, DocStat, StatsStrip, StatDivider, statusBadge } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
@@ -16,6 +17,7 @@ export default function IroningDcDetail() {
     [id]
   )
   const [busy, setBusy] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editDate, setEditDate] = useState('')
   const [editSentTo, setEditSentTo] = useState('')
@@ -64,6 +66,10 @@ export default function IroningDcDetail() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-secondary" onClick={() => printIroningDc(doc)}>Print DC</button>
+          <button className="btn btn-secondary" disabled={downloading}
+            onClick={async () => { setDownloading(true); try { await downloadIroningDcAsImage(doc) } finally { setDownloading(false) } }}>
+            <Download size={15} />{downloading ? 'Preparing…' : 'Download Image'}
+          </button>
           {doc.status === 'DRAFT' && !editing && <button className="btn btn-secondary" onClick={() => setEditing(true)}>Edit</button>}
           {editing && (<><button className="btn btn-secondary" onClick={cancelEdit}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={doSaveEdit}>{busy ? 'Saving…' : 'Save Changes'}</button></>)}
           {doc.status === 'DRAFT' && !editing && (

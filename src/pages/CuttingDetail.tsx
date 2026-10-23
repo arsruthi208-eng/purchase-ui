@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { cuttingApi, type CuttingOrder } from '../api/cutting'
 import { fabricRollsApi, type FabricRoll } from '../api/fabricRolls'
 import { fabricsApi } from '../api/fabrics'
-import { printCuttingDc } from '../utils/printDc'
+import { printCuttingDc, downloadCuttingDcAsImage } from '../utils/printDc'
+import { Download } from '../icons'
 import { useApiData, useApiList } from '../hooks/useApiData'
 import { BackButton, InfoRow, DocStat, StatsStrip, StatDivider, statusBadge } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
@@ -131,6 +132,7 @@ export default function CuttingDetail() {
     [id]
   )
   const [busy, setBusy] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [editing, setEditing] = useState(false)
 
   // Header fields
@@ -290,6 +292,10 @@ export default function CuttingDetail() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-secondary" onClick={() => printCuttingDc(doc)}>Print DC</button>
+          <button className="btn btn-secondary" disabled={downloading}
+            onClick={async () => { setDownloading(true); try { await downloadCuttingDcAsImage(doc) } finally { setDownloading(false) } }}>
+            <Download size={15} />{downloading ? 'Preparing…' : 'Download Image'}
+          </button>
           {doc.status === 'DRAFT' && !editing && (
             <button className="btn btn-secondary" onClick={startEdit}>Edit</button>
           )}

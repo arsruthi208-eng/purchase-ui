@@ -42,4 +42,5 @@ export {
   ArrowLeft,
   TrendingUp,
   TrendingDown,
+  Download,
 } from 'lucide-react'

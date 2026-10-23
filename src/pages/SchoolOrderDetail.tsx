@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Printer } from '../icons'
+import { Printer, Download } from '../icons'
 import {
   schoolOrdersApi,
   type SchoolOrderDetail as DetailType,
@@ -12,7 +12,7 @@ import { useApiData } from '../hooks/useApiData'
 import { BackButton, statusBadge } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
-import { printSchoolOrder } from '../utils/printSchoolOrder'
+import { printSchoolOrder, downloadSchoolOrderAsImage } from '../utils/printSchoolOrder'
 
 /* ────────────────────────────── helpers ── */
 function sumQty(items: SchoolOrderItemResponse[]) {
@@ -133,6 +133,7 @@ export default function SchoolOrderDetail() {
   )
   const [busy, setBusy]       = useState(false)
   const [printing, setPrinting] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const { dialog, showError, showConfirm } = useAlertDialog()
 
   const doConfirmOrder = async () => {
@@ -174,6 +175,12 @@ export default function SchoolOrderDetail() {
             style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Printer size={15} weight="fill" />
             {printing ? 'Preparing…' : 'Print Order'}
+          </button>
+          <button className="btn btn-secondary" disabled={downloading}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={async () => { setDownloading(true); try { await downloadSchoolOrderAsImage(order) } finally { setDownloading(false) } }}>
+            <Download size={15} />
+            {downloading ? 'Preparing…' : 'Download Image'}
           </button>
           {order.status === 'DRAFT' && (
             <button className="btn btn-primary" disabled={busy}

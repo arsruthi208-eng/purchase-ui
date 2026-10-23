@@ -1,5 +1,6 @@
 import type { SchoolOrderDetail, SchoolOrderItemResponse } from '../api/schoolOrders'
 import logoSrc from '../assets/apple-uniformm-logo.png'
+import { downloadAsImage } from './downloadAsImage'
 
 const COMPANY_ADDRESS = '3/190, Mettupalayam road, Negamam, Sathyamangalam'
 const TAGLINE = 'Manufacturer of SCHOOL, COLLEGE, SPORTS & INDUSTRIAL UNIFORMS.'
@@ -301,4 +302,10 @@ export async function printSchoolOrder(order: SchoolOrderDetail): Promise<void> 
     a.href = url; a.target = '_blank'; a.click()
   }
   setTimeout(() => URL.revokeObjectURL(url), 60000)
+}
+
+export async function downloadSchoolOrderAsImage(order: SchoolOrderDetail): Promise<void> {
+  const logoDataUrl = await getLogoDataUrl()
+  const html = buildHtml(order, logoDataUrl)
+  await downloadAsImage(order.orderNumber, html)
 }

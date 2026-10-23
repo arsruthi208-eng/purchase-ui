@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { FileText, Printer } from '../icons'
+import { FileText, Printer, Download } from '../icons'
 import { purchaseOrdersApi, type PoDetail } from '../api/purchaseOrders'
 import { useApiData } from '../hooks/useApiData'
 import { BackButton, InfoRow, DocStat, StatsStrip, StatDivider, statusBadge } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
-import { printPurchaseOrder } from '../utils/printPurchaseOrder'
+import { printPurchaseOrder, downloadPoAsImage } from '../utils/printPurchaseOrder'
 import { sharedUnitSuffix, shortUnit } from '../utils/units'
 
 const SIGN_ROLES = [
@@ -31,6 +31,7 @@ export default function PurchaseOrderDetail() {
   const [actionBusy, setActionBusy] = useState(false)
   const [signingRole, setSigningRole] = useState<string | null>(null)
   const [printing, setPrinting] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const { dialog, showError, showConfirm } = useAlertDialog()
 
   const doChangeStatus = async (status: string) => {
@@ -115,6 +116,15 @@ export default function PurchaseOrderDetail() {
           >
             <Printer size={15} weight="fill" />
             {printing ? 'Preparing…' : 'Print / PDF'}
+          </button>
+          <button
+            className="btn btn-secondary"
+            disabled={downloading}
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+            onClick={async () => { setDownloading(true); try { await downloadPoAsImage(po) } finally { setDownloading(false) } }}
+          >
+            <Download size={15} />
+            {downloading ? 'Preparing…' : 'Download Image'}
           </button>
           {/* E-sign buttons — show only the next applicable role */}
           {SIGN_ROLES.filter(r => r.requiredStatus === po.status).map(r => (

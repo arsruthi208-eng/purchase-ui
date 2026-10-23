@@ -6,6 +6,7 @@ import type { CheckingDc } from '../api/checkingDc'
 import type { UnitDc, AccessoryDc } from '../api/unitDc'
 import { fabricsApi } from '../api/fabrics'
 import { shortUnit, sharedUnitSuffix } from './units'
+import { downloadAsImage } from './downloadAsImage'
 
 const COMPANY_TAGLINE = 'Manufacturer of SCHOOL, COLLEGE, SPORTS &amp; INDUSTRIAL UNIFORMS.'
 const COMPANY_ADDRESS = '3/190, Mettupalayam road, Negamam, Sathyamangalam'
@@ -112,7 +113,7 @@ function buildHtml(opts: {
   /* ── footer ── */
   .footer { margin-top: 56px; display: flex; justify-content: flex-end; }
   .sign-block { text-align: center; border: 1px solid #94a3b8; border-radius: 6px; padding: 10px 28px 8px; min-width: 210px; }
-  .sign-title { font-size: 11px; font-weight: 700; color: #c4161c; margin-bottom: 4px; }
+  .sign-title { font-size: 11px; font-weight: 700; color: #1b5e20; margin-bottom: 4px; }
   .sign-space { height: 52px; }
   .sign-line { border-top: 1px solid #333; padding-top: 4px; font-size: 10px; color: #555; }
 
@@ -174,7 +175,7 @@ function statHtml(label: string, value: string): string {
 
 // ─── Cutting DC ──────────────────────────────────────────────────────────────
 
-export async function printCuttingDc(doc: CuttingOrder): Promise<void> {
+async function buildCuttingDcHtml(doc: CuttingOrder): Promise<string> {
   const logo = await getLogoDataUrl()
   const fabrics = await fabricsApi.list().catch(() => [])
   const unitOf = (fabricId: string) => fabrics.find(f => f.id === fabricId)?.unitOfMeasure ?? 'METER'
@@ -211,7 +212,7 @@ export async function printCuttingDc(doc: CuttingOrder): Promise<void> {
     </table>`
 
   const title = `${doc.cuttingNumber} DC`
-  const html = buildHtml({
+  return buildHtml({
     title, dcType: 'CUTTING DC', dcNumber: doc.cuttingNumber, logoDataUrl: logo,
     summaryFields: [
       { label: 'Cutting Number', value: esc(doc.cuttingNumber) },
@@ -224,12 +225,19 @@ export async function printCuttingDc(doc: CuttingOrder): Promise<void> {
     statsHtml: statHtml('Lines', String(doc.items.length)) + statHtml('Total Pieces', totalQty.toLocaleString('en-IN')) + statHtml('Fabric Consumed', `${totalFabric.toFixed(2)}${fabricSuffix}`),
     bodyHtml,
   })
-  openPrint(html)
+}
+
+export async function printCuttingDc(doc: CuttingOrder): Promise<void> {
+  openPrint(await buildCuttingDcHtml(doc))
+}
+
+export async function downloadCuttingDcAsImage(doc: CuttingOrder): Promise<void> {
+  await downloadAsImage(doc.cuttingNumber, await buildCuttingDcHtml(doc))
 }
 
 // ─── Unit DC ─────────────────────────────────────────────────────────────────
 
-export async function printUnitDc(doc: UnitDc): Promise<void> {
+async function buildUnitDcHtml(doc: UnitDc): Promise<string> {
   const logo = await getLogoDataUrl()
   const totalQty = doc.items.reduce((s, i) => s + i.quantity, 0)
 
@@ -257,7 +265,7 @@ export async function printUnitDc(doc: UnitDc): Promise<void> {
     </table>`
 
   const title = `${doc.dcNumber} DC`
-  const html = buildHtml({
+  return buildHtml({
     title, dcType: 'UNIT DC', dcNumber: doc.dcNumber, logoDataUrl: logo,
     summaryFields: [
       { label: 'DC Number',      value: esc(doc.dcNumber) },
@@ -270,12 +278,19 @@ export async function printUnitDc(doc: UnitDc): Promise<void> {
     statsHtml: statHtml('Lines', String(doc.items.length)) + statHtml('Total Pieces', totalQty.toLocaleString('en-IN')),
     bodyHtml,
   })
-  openPrint(html)
+}
+
+export async function printUnitDc(doc: UnitDc): Promise<void> {
+  openPrint(await buildUnitDcHtml(doc))
+}
+
+export async function downloadUnitDcAsImage(doc: UnitDc): Promise<void> {
+  await downloadAsImage(doc.dcNumber, await buildUnitDcHtml(doc))
 }
 
 // ─── Accessory DC ────────────────────────────────────────────────────────────
 
-export async function printAccessoryDc(doc: AccessoryDc): Promise<void> {
+async function buildAccessoryDcHtml(doc: AccessoryDc): Promise<string> {
   const logo = await getLogoDataUrl()
   const totalQty = doc.items.reduce((s, i) => s + Number(i.quantity), 0)
   const totalSuffix = sharedUnitSuffix(doc.items.map(i => i.unitOfMeasure))
@@ -305,7 +320,7 @@ export async function printAccessoryDc(doc: AccessoryDc): Promise<void> {
     </table>`
 
   const title = `${doc.dcNumber} DC`
-  const html = buildHtml({
+  return buildHtml({
     title, dcType: 'ACCESSORY DC', dcNumber: doc.dcNumber, logoDataUrl: logo,
     summaryFields: [
       { label: 'DC Number',      value: esc(doc.dcNumber) },
@@ -318,12 +333,19 @@ export async function printAccessoryDc(doc: AccessoryDc): Promise<void> {
     statsHtml: statHtml('Lines', String(doc.items.length)) + statHtml('Total Qty', `${totalQty.toLocaleString('en-IN')}${totalSuffix}`),
     bodyHtml,
   })
-  openPrint(html)
+}
+
+export async function printAccessoryDc(doc: AccessoryDc): Promise<void> {
+  openPrint(await buildAccessoryDcHtml(doc))
+}
+
+export async function downloadAccessoryDcAsImage(doc: AccessoryDc): Promise<void> {
+  await downloadAsImage(doc.dcNumber, await buildAccessoryDcHtml(doc))
 }
 
 // ─── Stitching (KajaButton) DC ───────────────────────────────────────────────
 
-export async function printStitchingDc(doc: StitchingDc): Promise<void> {
+async function buildStitchingDcHtml(doc: StitchingDc): Promise<string> {
   const logo = await getLogoDataUrl()
   const totalQty  = doc.items.reduce((s, i) => s + i.quantity, 0)
   const totalKaja = doc.kajaConsumption.reduce((s, k) => s + Number(k.quantity), 0)
@@ -378,7 +400,7 @@ export async function printStitchingDc(doc: StitchingDc): Promise<void> {
     ${kajaHtml}`
 
   const title = `${doc.dcNumber} DC`
-  const html = buildHtml({
+  return buildHtml({
     title, dcType: 'STITCHING DC', dcNumber: doc.dcNumber, logoDataUrl: logo,
     summaryFields: [
       { label: 'DC Number',      value: esc(doc.dcNumber) },
@@ -393,12 +415,19 @@ export async function printStitchingDc(doc: StitchingDc): Promise<void> {
     statsHtml: statHtml('Garment Lines', String(doc.items.length)) + statHtml('Total Pieces', totalQty.toLocaleString('en-IN')) + statHtml('Kaja Lines', String(doc.kajaConsumption.length)),
     bodyHtml,
   })
-  openPrint(html)
+}
+
+export async function printStitchingDc(doc: StitchingDc): Promise<void> {
+  openPrint(await buildStitchingDcHtml(doc))
+}
+
+export async function downloadStitchingDcAsImage(doc: StitchingDc): Promise<void> {
+  await downloadAsImage(doc.dcNumber, await buildStitchingDcHtml(doc))
 }
 
 // ─── Ironing DC ──────────────────────────────────────────────────────────────
 
-export async function printIroningDc(doc: IroningDc): Promise<void> {
+async function buildIroningDcHtml(doc: IroningDc): Promise<string> {
   const logo = await getLogoDataUrl()
   const totalQty = doc.items.reduce((s, i) => s + i.quantity, 0)
 
@@ -426,7 +455,7 @@ export async function printIroningDc(doc: IroningDc): Promise<void> {
     </table>`
 
   const title = `${doc.dcNumber} DC`
-  const html = buildHtml({
+  return buildHtml({
     title, dcType: 'IRONING DC', dcNumber: doc.dcNumber, logoDataUrl: logo,
     summaryFields: [
       { label: 'DC Number',      value: esc(doc.dcNumber) },
@@ -440,12 +469,19 @@ export async function printIroningDc(doc: IroningDc): Promise<void> {
     statsHtml: statHtml('Lines', String(doc.items.length)) + statHtml('Total Pieces', totalQty.toLocaleString('en-IN')),
     bodyHtml,
   })
-  openPrint(html)
+}
+
+export async function printIroningDc(doc: IroningDc): Promise<void> {
+  openPrint(await buildIroningDcHtml(doc))
+}
+
+export async function downloadIroningDcAsImage(doc: IroningDc): Promise<void> {
+  await downloadAsImage(doc.dcNumber, await buildIroningDcHtml(doc))
 }
 
 // ─── Checking DC ─────────────────────────────────────────────────────────────
 
-export async function printCheckingDc(doc: CheckingDc): Promise<void> {
+async function buildCheckingDcHtml(doc: CheckingDc): Promise<string> {
   const logo = await getLogoDataUrl()
   const totalQty = doc.items.reduce((s, i) => s + i.quantity, 0)
 
@@ -473,7 +509,7 @@ export async function printCheckingDc(doc: CheckingDc): Promise<void> {
     </table>`
 
   const title = `${doc.dcNumber} DC`
-  const html = buildHtml({
+  return buildHtml({
     title, dcType: 'CHECKING DC', dcNumber: doc.dcNumber, logoDataUrl: logo,
     summaryFields: [
       { label: 'DC Number',      value: esc(doc.dcNumber) },
@@ -487,5 +523,12 @@ export async function printCheckingDc(doc: CheckingDc): Promise<void> {
     statsHtml: statHtml('Lines', String(doc.items.length)) + statHtml('Total Pieces', totalQty.toLocaleString('en-IN')),
     bodyHtml,
   })
-  openPrint(html)
+}
+
+export async function printCheckingDc(doc: CheckingDc): Promise<void> {
+  openPrint(await buildCheckingDcHtml(doc))
+}
+
+export async function downloadCheckingDcAsImage(doc: CheckingDc): Promise<void> {
+  await downloadAsImage(doc.dcNumber, await buildCheckingDcHtml(doc))
 }

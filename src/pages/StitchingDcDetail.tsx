@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Trash2 } from '../icons'
 import { stitchingDcApi, type StitchingDc } from '../api/stitchingDc'
-import { printStitchingDc } from '../utils/printDc'
+import { printStitchingDc, downloadStitchingDcAsImage } from '../utils/printDc'
+import { Download } from '../icons'
 import { useApiData } from '../hooks/useApiData'
 import { BackButton, InfoRow, DocStat, StatsStrip, StatDivider, statusBadge } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
@@ -17,6 +18,7 @@ export default function StitchingDcDetail() {
     [id]
   )
   const [busy, setBusy] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editDate, setEditDate] = useState('')
   const [editSentTo, setEditSentTo] = useState('')
@@ -84,6 +86,10 @@ export default function StitchingDcDetail() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-secondary" onClick={() => printStitchingDc(doc)}>Print DC</button>
+          <button className="btn btn-secondary" disabled={downloading}
+            onClick={async () => { setDownloading(true); try { await downloadStitchingDcAsImage(doc) } finally { setDownloading(false) } }}>
+            <Download size={15} />{downloading ? 'Preparing…' : 'Download Image'}
+          </button>
           {doc.status === 'DRAFT' && !editing && (
             <button className="btn btn-secondary" onClick={startEdit}>Edit</button>
           )}
