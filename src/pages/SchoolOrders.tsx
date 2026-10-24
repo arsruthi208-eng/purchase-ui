@@ -16,6 +16,9 @@ import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 const GENDERS = ['BOYS', 'GIRLS', 'UNISEX'] as const
 const KINDS: SchoolOrderKind[] = ['SCHOOL_STD', 'SCHOOL_SIZE', 'CORPORATE']
 
+const CURRENT_YEAR = new Date().getFullYear()
+const ACADEMIC_YEARS = Array.from({ length: 6 }, (_, i) => String(CURRENT_YEAR - 1 + i))
+
 type Line = CreateSchoolOrderRequest['items'][0]
 
 const emptyLine = (kind: SchoolOrderKind): Line => {
@@ -228,7 +231,10 @@ export default function SchoolOrders() {
             </div>
             <div className="form-group">
               <label>Academic Year</label>
-              <input placeholder="e.g. 2026-27" value={form.academicYear ?? ''} onChange={e => setForm(p => ({ ...p, academicYear: e.target.value }))} />
+              <select value={form.academicYear ?? ''} onChange={e => setForm(p => ({ ...p, academicYear: e.target.value }))}>
+                <option value="">— Select year —</option>
+                {ACADEMIC_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
             </div>
             <div className="form-group">
               <label>Order Date *</label>
