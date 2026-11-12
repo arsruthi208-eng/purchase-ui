@@ -5,7 +5,8 @@ import { grnApi, type GrnDetail as GrnDetailType } from '../api/grn'
 import { fabricsApi } from '../api/fabrics'
 import { accessoriesApi } from '../api/accessories'
 import { useApiData, useApiList } from '../hooks/useApiData'
-import { BackButton, InfoRow, DocStat, StatsStrip, StatDivider, statusBadge } from '../components/ui'
+import { BackButton, InfoRow, DocStat, StatsStrip, StatDivider, statusBadge, Modal, FormError, FormActions, today } from '../components/ui'
+import { GrnBillForm, emptyBill, billFromExisting, billToRequest, type BillFormState } from '../components/GrnBillForm'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 import { shortUnit, sharedUnitSuffix } from '../utils/units'
@@ -21,6 +22,28 @@ export default function GrnDetail() {
   const { data: accessories } = useApiList(() => accessoriesApi.list())
   const [actionBusy, setActionBusy] = useState(false)
   const { dialog, showError, showConfirm } = useAlertDialog()
+  const [billOpen, setBillOpen] = useState(false)
+  const [billForm, setBillForm] = useState<BillFormState>(emptyBill(today()))
+  const [billErr, setBillErr] = useState('')
+  const [billSaving, setBillSaving] = useState(false)
+
+  const openBill = () => {
+    if (!grn) return
+    const recv = grn.items.reduce((s, i) => s + i.receivedQuantity, 0)
+    const price = grn.items.length === 1 ? grn.items[0].unitPrice : 0
+    setBillForm(grn.bill ? billFromExisting(grn.bill) : { ...emptyBill(grn.receivedDate), qty: String(recv), price: price ? String(price) : '' })
+    setBillErr('')
+    setBillOpen(true)
+  }
+  const saveBill = async () => {
+    if (!grn) return
+    if (!billForm.billNo.trim()) { setBillErr('Bill No is required'); return }
+    if (!billForm.billDate) { setBillErr('Bill Date is required'); return }
+    setBillSaving(true); setBillErr('')
+    try { await grnApi.saveBill(grn.id, billToRequest(billForm)); setBillOpen(false); reload() }
+    catch (e: any) { isForbiddenError(e) ? setBillErr(PERMISSION_DENIED_MSG) : setBillErr(e.message) }
+    finally { setBillSaving(false) }
+  }
 
   const doConfirmGrn = async () => {
     if (!grn) return
@@ -88,6 +111,45 @@ export default function GrnDetail() {
           <DocStat label="Total Value"        value={`₹${totalValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`} />
         </StatsStrip>
       </div>
+
+      {/* ── Supplier bill ── */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card-header" style={{ borderBottom: '1px solid var(--border)' }}>
+          <h2>Supplier Bill</h2>
+          <button className="btn btn-sm btn-secondary" onClick={openBill}>{grn.bill ? 'Edit Bill' : 'Add Bill'}</button>
+        </div>
+        {grn.bill ? (() => {
+          const b = grn.bill
+          const m = (v: number) => `₹${Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+          return (
+            <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', rowGap: 14, columnGap: 40 }}>
+              <InfoRow label="Bill No" value={b.billNo} />
+              <InfoRow label="Bill Date" value={b.billDate} />
+              <InfoRow label="Particulars" value={b.particulars ?? '—'} />
+              <InfoRow label="Qty" value={Number(b.qty).toLocaleString()} />
+              <InfoRow label="Price" value={m(b.price)} />
+              <InfoRow label="Amount" value={m(b.amount)} />
+              <InfoRow label="Others (Ins/Packaging)" value={m(b.otherCharges)} />
+              <InfoRow label="Taxable" value={m(b.taxable)} />
+              <InfoRow label="GST" value={m(b.gst)} />
+              <InfoRow label="R.Off" value={m(b.roundOff)} />
+              <InfoRow label="Total" value={m(b.total)} />
+              <InfoRow label="Amount Paid" value={m(b.amountPaid)} />
+              <InfoRow label="Current Balance" value={m(b.currentBalance)} />
+            </div>
+          )
+        })() : (
+          <div style={{ padding: '14px 20px', fontSize: 13, color: 'var(--text-muted)' }}>No bill entered for this GRN yet.</div>
+        )}
+      </div>
+
+      {billOpen && (
+        <Modal title={grn.bill ? 'Edit Bill' : 'Add Bill'} onClose={() => setBillOpen(false)} width={860}>
+          <FormError message={billErr} />
+          <GrnBillForm value={billForm} onChange={setBillForm} amountPaid={grn.bill?.amountPaid ?? 0} />
+          <FormActions onCancel={() => setBillOpen(false)} onSave={saveBill} saving={billSaving} />
+        </Modal>
+      )}
 
       {/* ── Section 2: Items ── */}
       <div className="card">

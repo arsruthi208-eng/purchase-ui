@@ -6,9 +6,34 @@ export interface GrnSummary {
   grnNumber: string
   poNumber: string
   grnKind: string
+  purchasePartyId?: string
+  purchasePartyName?: string
   receivedDate: string
   status: string
   itemCount: number
+  billNo?: string
+  billTotal?: number
+}
+
+/** Supplier invoice received with a GRN. amount/taxable/total are recomputed server-side. */
+export interface GrnBillRequest {
+  billNo: string
+  billDate: string
+  particulars?: string
+  qty: number
+  price: number
+  otherCharges: number
+  gst: number
+  roundOff: number
+}
+
+export interface GrnBill extends GrnBillRequest {
+  id: string
+  amount: number
+  taxable: number
+  total: number
+  amountPaid: number
+  currentBalance: number
 }
 
 export interface GrnItem {
@@ -35,6 +60,7 @@ export interface GrnDetail {
   notes?: string
   status: string
   items: GrnItem[]
+  bill?: GrnBill
 }
 
 export interface CreateGrnItemRequest {
@@ -56,6 +82,7 @@ export interface CreateGrnRequest {
   vehicleNumber?: string
   notes?: string
   items: CreateGrnItemRequest[]
+  bill?: GrnBillRequest
 }
 
 export const grnApi = {
@@ -63,6 +90,7 @@ export const grnApi = {
     api.get<GrnSummary[]>('/api/v1/grn', { params: poId ? { poId } : undefined }).then(r => r.data),
   getById: (id: string) => api.get<GrnDetail>(`/api/v1/grn/${id}`).then(r => r.data),
   create: (data: CreateGrnRequest) => api.post<GrnDetail>('/api/v1/grn', data).then(r => r.data),
+  saveBill: (id: string, data: GrnBillRequest) => api.put<GrnDetail>(`/api/v1/grn/${id}/bill`, data).then(r => r.data),
   confirm: (id: string) => api.post<GrnDetail>(`/api/v1/grn/${id}/confirm`).then(r => r.data),
   delete: (id: string) => api.delete(`/api/v1/grn/${id}`),
 }

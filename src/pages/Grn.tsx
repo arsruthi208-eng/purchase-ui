@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
 import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { grnApi, type GrnSummary, type CreateGrnRequest, type CreateGrnItemRequest } from '../api/grn'
 import { type RollEntry, fabricRollsApi } from '../api/fabricRolls'
 import { purchaseOrdersApi, type PoSummary } from '../api/purchaseOrders'
+import { GrnBillForm, emptyBill, billTouched, billToRequest, type BillFormState } from '../components/GrnBillForm'
+import { purchasePartiesApi, type PurchaseParty } from '../api/purchaseParties'
 import { useApiList } from '../hooks/useApiData'
 import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
@@ -17,12 +19,24 @@ interface LineState {
   fabricId: string
   fabricLabel: string
   orderedMeters: number
+  /** Already received on earlier confirmed GRNs of this PO */
+  receivedEarlier: number
+  unitPrice: number
   unitOfMeasure: string
   rolls: RollEntry[]
   startRollNo: number
 }
 
-const emptyLine = (): LineState => ({ fabricId: '', fabricLabel: '', orderedMeters: 0, unitOfMeasure: 'METER', rolls: [], startRollNo: 1 })
+function SectionTitle({ n, title }: { n: number; title: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0 12px', paddingBottom: 6, borderBottom: '1px solid var(--border)' }}>
+      <span style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--navy)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{n}</span>
+      <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--navy)' }}>{title}</span>
+    </div>
+  )
+}
+
+const emptyLine = (): LineState => ({ fabricId: '', fabricLabel: '', orderedMeters: 0, receivedEarlier: 0, unitPrice: 0, unitOfMeasure: 'METER', rolls: [], startRollNo: 1 })
 
 export default function Grn() {
   const navigate = useNavigate()
@@ -32,7 +46,12 @@ export default function Grn() {
   const [statusFilter, setStatusFilter] = useState('')
   const [kindFilter, setKindFilter] = useState('')
   const [search, setSearch] = useState('')
-  const { data: openPos } = useApiList<PoSummary>(() => purchaseOrdersApi.list('OPEN'))
+  const [partyFilter, setPartyFilter] = useState('')
+  // A PO stays receivable after its first GRN (PARTIALLY_RECEIVED), so one PO can have many GRNs
+  const { data: openPos } = useApiList<PoSummary>(async () => {
+    const [open, partial] = await Promise.all([purchaseOrdersApi.list('OPEN'), purchaseOrdersApi.list('PARTIALLY_RECEIVED')])
+    return [...partial, ...open]
+  })
   const [loadingPo, setLoadingPo] = useState(false)
 
   const [showForm, setShowForm] = useState(false)
@@ -41,6 +60,8 @@ export default function Grn() {
   const [vehicleNumber, setVehicleNumber] = useState('')
   const [notes, setNotes] = useState('')
   const [lines, setLines] = useState<LineState[]>([emptyLine()])
+  const [bill, setBill] = useState<BillFormState>(emptyBill(today()))
+  const [qtyAuto, setQtyAuto] = useState(true)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -62,6 +83,8 @@ export default function Grn() {
     setVehicleNumber('')
     setNotes('')
     setLines([emptyLine()])
+    setBill(emptyBill(today()))
+    setQtyAuto(true)
     setError('')
     setShowForm(true)
   }
@@ -84,6 +107,8 @@ export default function Grn() {
             fabricId: item.fabricId ?? '',
             fabricLabel: `${item.fabricCode} — ${item.fabricName}`,
             orderedMeters: item.orderedQuantity,
+            receivedEarlier: item.receivedQuantity ?? 0,
+            unitPrice: item.unitPrice ?? 0,
             unitOfMeasure: fab?.unitOfMeasure ?? item.unitOfMeasure ?? 'METER',
             rolls: [],
             startRollNo,
@@ -91,6 +116,8 @@ export default function Grn() {
         })
       )
       setLines(newLines.length > 0 ? newLines : [emptyLine()])
+      const price = newLines.length === 1 ? newLines[0].unitPrice : 0
+      setBill(b => ({ ...b, price: price ? String(price) : '' }))
     } catch (e: any) { isForbiddenError(e) ? showError('Access Denied', PERMISSION_DENIED_MSG) : showError('Load PO Failed', e.message) }
     finally { setLoadingPo(false) }
   }
@@ -110,17 +137,28 @@ export default function Grn() {
       ? { ...l, rolls: l.rolls.map((r, ri) => ri === rollIdx ? { ...r, quantityMeters: val } : r) }
       : l))
 
+  const totalReceivedNow = useMemo(
+    () => lines.reduce((s, l) => s + l.rolls.reduce((sr, r) => sr + r.quantityMeters, 0), 0), [lines])
+  // Bill qty follows the received meters until the user types their own value
+  useEffect(() => {
+    if (qtyAuto) setBill(b => ({ ...b, qty: totalReceivedNow > 0 ? String(Math.round(totalReceivedNow * 1000) / 1000) : '' }))
+  }, [totalReceivedNow, qtyAuto])
+
   const save = async () => {
     if (!poId || !receivedDate) { setError('PO and received date are required'); return }
     if (lines.some(l => !l.fabricId)) { setError('Each line needs a fabric selected'); return }
     if (lines.some(l => l.rolls.length === 0)) { setError('Each line needs at least one roll'); return }
     if (lines.some(l => l.rolls.some(r => r.quantityMeters <= 0))) { setError('Every roll must have a quantity greater than 0'); return }
 
+    const withBill = billTouched(bill)
+    if (withBill && !bill.billNo.trim()) { setError('Bill No is required when bill details are entered'); return }
+    if (withBill && !bill.billDate) { setError('Bill Date is required'); return }
     const payload: CreateGrnRequest = {
       poId,
       receivedDate,
       vehicleNumber: vehicleNumber || undefined,
       notes: notes || undefined,
+      bill: withBill ? billToRequest(bill) : undefined,
       items: lines.map(l => ({
         fabricId: l.fabricId,
         receivedQuantity: 0,   // derived server-side from roll sum
@@ -154,13 +192,21 @@ export default function Grn() {
     )
   }
 
+  // All purchase parties (fabric + accessory) for the party dropdown
+  const { data: parties } = useApiList<PurchaseParty>(() => purchasePartiesApi.list())
+  const partyOptions = useMemo(
+    () => parties.map(p => ({ value: p.id, label: p.partyName })).sort((a, b) => a.label.localeCompare(b.label)),
+    [parties])
+
   const [sortDesc, setSortDesc] = useState(true)
   const filtered = items.filter(r => {
     if (statusFilter && r.status !== statusFilter) return false
     if (kindFilter && r.grnKind !== kindFilter) return false
+    if (partyFilter && r.purchasePartyId !== partyFilter) return false
     if (search) {
       const q = search.toLowerCase()
-      if (!(r.grnNumber.toLowerCase().includes(q) || r.poNumber.toLowerCase().includes(q))) return false
+      if (!(r.grnNumber.toLowerCase().includes(q) || r.poNumber.toLowerCase().includes(q) ||
+            (r.purchasePartyName ?? '').toLowerCase().includes(q))) return false
     }
     return true
   })
@@ -180,33 +226,36 @@ export default function Grn() {
       </div>
 
       {showForm && (
-        <Modal title="New GRN" onClose={() => setShowForm(false)} width={700}>
+        <Modal title="New GRN" onClose={() => setShowForm(false)} width={860}>
           <FormError message={error} />
-          <div className="form-group">
-            <label>Purchase Order *</label>
-            <SearchableSelect
-              value={poId}
-              onChange={onPoChange}
-              placeholder="Select open PO"
-              disabled={loadingPo}
-              options={openPos.map(po => ({ value: po.id, label: `${po.poNumber} — ${po.purchasePartyName ?? 'No party'}` }))}
-            />
-            {loadingPo && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Loading fabric lines…</div>}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <SectionTitle n={1} title="Receipt Details" />
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+            <div className="form-group">
+              <label>Purchase Order *</label>
+              <SearchableSelect
+                value={poId}
+                onChange={onPoChange}
+                placeholder="Select open / partially received PO"
+                disabled={loadingPo}
+                options={openPos.map(po => ({ value: po.id, label: `${po.poNumber} — ${po.purchasePartyName ?? 'No party'}` }))}
+              />
+              {loadingPo && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Loading fabric lines…</div>}
+            </div>
             <div className="form-group">
               <label>Received Date *</label>
               <input type="date" value={receivedDate} onChange={e => setReceivedDate(e.target.value)} />
             </div>
             <div className="form-group">
+              <label>Notes</label>
+              <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional remarks" />
+            </div>
+            <div className="form-group">
               <label>Vehicle Number</label>
-              <input value={vehicleNumber} onChange={e => setVehicleNumber(e.target.value)} />
+              <input value={vehicleNumber} onChange={e => setVehicleNumber(e.target.value)} placeholder="e.g. TN 01 AB 1234" />
             </div>
           </div>
-          <div className="form-group">
-            <label>Notes</label>
-            <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} />
-          </div>
+
+          <SectionTitle n={2} title="Goods Received" />
 
           {/* ── Fabric Lines ── */}
           {!poId ? (
@@ -220,19 +269,22 @@ export default function Grn() {
             <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
               {/* Header row */}
               <div style={{
-                display: 'grid', gridTemplateColumns: '1fr 130px 160px 90px',
+                display: 'grid', gridTemplateColumns: '1fr 100px 100px 100px 150px 80px',
                 background: '#f1f5f9', padding: '8px 16px',
                 fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em',
               }}>
                 <div>Fabric</div>
                 <div style={{ textAlign: 'right' }}>Ordered</div>
-                <div style={{ textAlign: 'right' }}>Received</div>
+                <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Prev. Recd</div>
+                <div style={{ textAlign: 'right' }}>Balance</div>
+                <div style={{ textAlign: 'right' }}>This GRN</div>
                 <div style={{ textAlign: 'center' }}>Rolls</div>
               </div>
 
               {lines.map((line, idx) => {
                 const receivedTotal = line.rolls.reduce((s, r) => s + r.quantityMeters, 0)
-                const diff = receivedTotal - line.orderedMeters
+                const balance = line.orderedMeters - line.receivedEarlier
+                const diff = receivedTotal - balance
                 const diffColor = diff > 0 ? '#16a34a' : diff < 0 ? '#dc2626' : '#6b7280'
                 const unit = shortUnit(line.unitOfMeasure)
 
@@ -240,7 +292,7 @@ export default function Grn() {
                   <div key={idx} style={{ borderTop: idx === 0 ? 'none' : '1px solid var(--border)' }}>
                     {/* Summary row */}
                     <div style={{
-                      display: 'grid', gridTemplateColumns: '1fr 130px 160px 90px',
+                      display: 'grid', gridTemplateColumns: '1fr 100px 100px 100px 150px 80px',
                       padding: '10px 16px', alignItems: 'center', background: '#fff',
                     }}>
                       <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--navy)' }}>
@@ -249,13 +301,19 @@ export default function Grn() {
                       <div style={{ textAlign: 'right', fontSize: 13, color: 'var(--text-muted)' }}>
                         {line.orderedMeters > 0 ? `${line.orderedMeters.toFixed(2)} ${unit}` : '—'}
                       </div>
+                      <div style={{ textAlign: 'right', fontSize: 13, color: 'var(--text-muted)' }}>
+                        {line.receivedEarlier.toFixed(2)} {unit}
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: 13, fontWeight: 600, color: balance > 0 ? '#b45309' : '#16a34a' }}>
+                        {balance.toFixed(2)} {unit}
+                      </div>
                       <div style={{ textAlign: 'right' }}>
                         <span style={{ fontSize: 13, fontWeight: 600 }}>
                           {receivedTotal > 0 ? `${receivedTotal.toFixed(2)} ${unit}` : <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>0 {unit}</span>}
                         </span>
-                        {receivedTotal > 0 && line.orderedMeters > 0 && (
+                        {receivedTotal > 0 && line.orderedMeters > 0 && Math.abs(diff) > 0.0001 && (
                           <div style={{ fontSize: 11, color: diffColor, marginTop: 1 }}>
-                            {diff >= 0 ? '+' : ''}{diff.toFixed(2)} {unit} vs ordered
+                            {diff > 0 ? `${diff.toFixed(2)} ${unit} over balance` : `${(-diff).toFixed(2)} ${unit} still pending`}
                           </div>
                         )}
                       </div>
@@ -333,23 +391,34 @@ export default function Grn() {
               {/* Footer: grand total */}
               {lines.length > 0 && (() => {
                 const totalOrdered  = lines.reduce((s, l) => s + l.orderedMeters, 0)
+                const totalEarlier  = lines.reduce((s, l) => s + l.receivedEarlier, 0)
                 const totalReceived = lines.reduce((s, l) => s + l.rolls.reduce((sr, r) => sr + r.quantityMeters, 0), 0)
                 const totalSuffix = sharedUnitSuffix(lines.map(l => l.unitOfMeasure))
                 return (
                   <div style={{
-                    display: 'grid', gridTemplateColumns: '1fr 130px 160px 90px',
+                    display: 'grid', gridTemplateColumns: '1fr 100px 100px 100px 150px 80px',
                     padding: '8px 16px', background: '#f8fafc',
                     borderTop: '2px solid var(--border)',
                     fontSize: 12, fontWeight: 700,
                   }}>
                     <div style={{ color: 'var(--text-muted)' }}>TOTAL</div>
                     <div style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{totalOrdered.toFixed(2)}{totalSuffix}</div>
+                    <div style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{totalEarlier.toFixed(2)}{totalSuffix}</div>
+                    <div style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{(totalOrdered - totalEarlier).toFixed(2)}{totalSuffix}</div>
                     <div style={{ textAlign: 'right', color: 'var(--navy)' }}>{totalReceived.toFixed(2)}{totalSuffix}</div>
                     <div />
                   </div>
                 )
               })()}
             </div>
+          )}
+
+          {poId && <SectionTitle n={3} title="Supplier Bill" />}
+          {poId && (
+            <GrnBillForm
+              value={bill}
+              onChange={b => { if (b.qty !== bill.qty) setQtyAuto(false); setBill(b) }}
+            />
           )}
 
           <FormActions onCancel={() => setShowForm(false)} onSave={save} saving={saving} />
@@ -359,10 +428,11 @@ export default function Grn() {
       <div className="card">
         <FilterBar
           filters={[
+            { label: 'Purchase Party', options: partyOptions, value: partyFilter, onChange: setPartyFilter, allLabel: 'All parties' },
             { label: 'Kind', options: [{ value: 'FABRIC', label: 'Fabric' }, { value: 'ACCESSORY', label: 'Accessory' }], value: kindFilter, onChange: setKindFilter, allLabel: 'All kinds' },
             { label: 'Status', options: [{ value: 'DRAFT', label: 'Draft' }, { value: 'CONFIRMED', label: 'Confirmed' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
           ]}
-          search={{ placeholder: 'GRN number, PO number…', value: search, onChange: setSearch }}
+          search={{ placeholder: 'Party, GRN number, PO number…', value: search, onChange: setSearch }}
           count={filtered.length} countLabel="GRNs"
         />
         {loadError ? (
@@ -371,10 +441,10 @@ export default function Grn() {
           <table>
             <thead>
               <tr>
+                <th>Purchase Party</th>
                 <th>GRN Number</th>
                 <th>PO Number</th>
                 <SortableTh label="Received Date" desc={sortDesc} onToggle={() => setSortDesc(p => !p)} />
-                <th>Items</th>
                 <th>Status</th>
                 <th style={{ width: 120 }}></th>
               </tr>
@@ -384,10 +454,10 @@ export default function Grn() {
                 <tr><td colSpan={6}><div className="empty-state">No GRNs yet</div></td></tr>
               ) : sorted.map(g => (
                 <tr key={g.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/grn/${g.id}`)}>
+                  <td>{g.purchasePartyName ?? '—'}</td>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{g.grnNumber}</td>
                   <td>{g.poNumber}</td>
                   <td>{g.receivedDate}</td>
-                  <td>{g.itemCount}</td>
                   <td><span className={`badge ${statusBadge(g.status)}`}>{g.status}</span></td>
                   <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
                     {g.status !== 'CONFIRMED' && (
