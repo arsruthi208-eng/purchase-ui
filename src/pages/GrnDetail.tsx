@@ -134,8 +134,6 @@ export default function GrnDetail() {
               <InfoRow label="GST" value={m(b.gst)} />
               <InfoRow label="R.Off" value={m(b.roundOff)} />
               <InfoRow label="Total" value={m(b.total)} />
-              <InfoRow label="Amount Paid" value={m(b.amountPaid)} />
-              <InfoRow label="Current Balance" value={m(b.currentBalance)} />
             </div>
           )
         })() : (
@@ -146,7 +144,7 @@ export default function GrnDetail() {
       {billOpen && (
         <Modal title={grn.bill ? 'Edit Bill' : 'Add Bill'} onClose={() => setBillOpen(false)} width={860}>
           <FormError message={billErr} />
-          <GrnBillForm value={billForm} onChange={setBillForm} amountPaid={grn.bill?.amountPaid ?? 0} />
+          <GrnBillForm value={billForm} onChange={setBillForm} />
           <FormActions onCancel={() => setBillOpen(false)} onSave={saveBill} saving={billSaving} />
         </Modal>
       )}

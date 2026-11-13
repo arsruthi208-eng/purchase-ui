@@ -27,8 +27,6 @@ const ALL_NAV: NavItem[] = [
     roles: ['ADMIN','PURCHASER'] },
   { to: '/grn',                       icon: ClipboardList, label: 'GRN',                        color: '#0284c7',
     roles: ['ADMIN','PURCHASER','STOCK_INCHARGE'] },
-  { to: '/purchase-outstandings',     icon: ClipboardList, label: 'Purchase Outstandings',      color: '#dc2626',
-    roles: ['ADMIN','PURCHASER'] },
 
   { section: 'Production' },
   { to: '/cutting',     icon: Scissors,      label: 'Cutting DC',    color: '#b45309',

@@ -46,16 +46,13 @@ export function billToRequest(f: BillFormState): GrnBillRequest {
 
 const money = (v: number) => v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-export function GrnBillForm({ value, onChange, amountPaid = 0 }: {
+export function GrnBillForm({ value, onChange }: {
   value: BillFormState
   onChange: (v: BillFormState) => void
-  /** Read-only: comes from party payments (Purchase Outstandings) */
-  amountPaid?: number
 }) {
   const set = (k: keyof BillFormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     onChange({ ...value, [k]: e.target.value })
   const { amount, taxable, total } = calcBill(value)
-  const balance = total - amountPaid
 
   const field = (k: keyof BillFormState, label: string, opts: { step?: string; ph?: string } = {}) => (
     <div className="form-group" style={{ marginBottom: 10 }}>
@@ -113,12 +110,7 @@ export function GrnBillForm({ value, onChange, amountPaid = 0 }: {
           <div style={{ background: 'var(--navy)', color: '#fff', borderRadius: 6, padding: '0 12px', margin: '6px 0' }}>
             {row('TOTAL', total, { bold: true, color: '#fff' })}
           </div>
-          {row('Amount Paid', amountPaid, { color: '#15803d' })}
-          {row('Current Balance', balance, { top: true, bold: true, color: balance > 0.005 ? '#b91c1c' : '#15803d' })}
         </div>
-      </div>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '8px 18px', borderTop: '1px solid var(--border)' }}>
-        Amount Paid is updated automatically from payments recorded under Purchase Outstandings.
       </div>
     </div>
   )

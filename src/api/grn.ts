@@ -32,8 +32,6 @@ export interface GrnBill extends GrnBillRequest {
   amount: number
   taxable: number
   total: number
-  amountPaid: number
-  currentBalance: number
 }
 
 export interface GrnItem {

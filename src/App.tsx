@@ -18,7 +18,6 @@ import PurchaseOrders from './pages/PurchaseOrders'
 import PurchaseOrderDetail from './pages/PurchaseOrderDetail'
 import Grn from './pages/Grn'
 import GrnDetail from './pages/GrnDetail'
-import PurchaseOutstandings from './pages/PurchaseOutstandings'
 import Cutting from './pages/Cutting'
 import CuttingDetail from './pages/CuttingDetail'
 import UnitDc from './pages/UnitDc'
@@ -72,7 +71,6 @@ export default function App() {
               <Route path="accessory-purchase-orders/:id" element={<PurchaseOrderDetail />} />
               <Route path="grn" element={<Grn />} />
               <Route path="grn/:id" element={<GrnDetail />} />
-              <Route path="purchase-outstandings" element={<PurchaseOutstandings />} />
               <Route path="cutting" element={<Cutting />} />
               <Route path="cutting/:id" element={<CuttingDetail />} />
               <Route path="unit-dc" element={<UnitDc />} />
