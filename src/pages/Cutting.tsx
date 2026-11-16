@@ -24,8 +24,6 @@ interface LineState {
   gender: string
   standard: string
   size: string
-  /** Read-only breakdown from the school order, e.g. "28 (285), 30 (340)" */
-  sizeHint?: string
   quantity: number
   fabricConsumed: number
   notes?: string
@@ -298,15 +296,14 @@ export default function Cutting() {
       setLockedSchoolId(detail.schoolId)
       setSchoolId(detail.schoolId)
       // Group per-size school-order items into one line per style+gender+standard
-      const groups = new Map<string, { item: typeof detail.items[number]; qty: number; sizes: string[] }>()
+      const groups = new Map<string, { item: typeof detail.items[number]; qty: number }>()
       detail.items.forEach(item => {
         const key = `${item.styleId}|${item.gender}|${item.standard}`
         const g = groups.get(key)
-        const sizeLabel = item.size ? `${item.size} (${item.quantity})` : ''
-        if (g) { g.qty += item.quantity; if (sizeLabel) g.sizes.push(sizeLabel) }
-        else groups.set(key, { item, qty: item.quantity, sizes: sizeLabel ? [sizeLabel] : [] })
+        if (g) g.qty += item.quantity
+        else groups.set(key, { item, qty: item.quantity })
       })
-      const autoLines: LineState[] = Array.from(groups.values()).map(({ item, qty, sizes }) => {
+      const autoLines: LineState[] = Array.from(groups.values()).map(({ item, qty }) => {
         const rate = styleMapRef.current[item.styleId]?.fabricConsumptionRate
         const fabricConsumed = rate && qty > 0 ? Math.round(qty * rate * 100) / 100 : 0
         return {
@@ -316,7 +313,6 @@ export default function Cutting() {
           gender: item.gender,
           standard: item.standard,
           size: '',
-          sizeHint: sizes.join(', '),
           quantity: qty,
           fabricConsumed,
           availableRolls: [],
@@ -578,11 +574,6 @@ export default function Cutting() {
                     style={{ width: '100%', minWidth: 0 }} />
                 </div>
 
-                {line.sizeHint && (
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
-                    Sizes: {line.sizeHint} &nbsp;·&nbsp; <strong>Total {line.quantity} pcs</strong>
-                  </div>
-                )}
                 {idx === 0 && line.fabricId && lines.length > 1 && (
                   <button type="button" className="btn btn-sm btn-secondary" style={{ marginBottom: 8 }}
                     onClick={() => applyFabricToAll(line.fabricId, line.colourId)}>
