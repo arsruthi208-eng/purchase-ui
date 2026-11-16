@@ -98,7 +98,15 @@ export default function StageGrnPage() {
     setLoadingItems(true)
     try {
       const lines = await stageGrnApi.sourceItems(type, id)
-      setItems(lines.map(it => ({
+      // One line per style+gender+standard (merge any per-size rows from older DCs)
+      const grouped = new Map<string, typeof lines[number]>()
+      lines.forEach(it => {
+        const key = `${it.styleId}|${it.gender}|${it.standard}`
+        const g = grouped.get(key)
+        if (g) grouped.set(key, { ...g, sentQty: g.sentQty + it.sentQty })
+        else grouped.set(key, { ...it })
+      })
+      setItems(Array.from(grouped.values()).map(it => ({
         styleId: it.styleId,
         styleName: it.styleName,
         gender: it.gender,

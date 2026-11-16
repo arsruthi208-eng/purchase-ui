@@ -215,7 +215,13 @@ export default function KajaButtonDc() {
                 </tr>
               </thead>
               <tbody>
-                {selectedCutting.items.map((it, i) => (
+                {Array.from(selectedCutting.items.reduce((m, it) => {
+                  const key = `${it.styleId}|${it.gender}|${it.standard}`
+                  const g = m.get(key)
+                  if (g) g.quantity += it.quantity
+                  else m.set(key, { ...it })
+                  return m
+                }, new Map<string, typeof selectedCutting.items[number]>()).values()).map((it, i) => (
                   <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
                     <td style={{ padding: '9px 12px', fontWeight: 600, color: 'var(--navy)' }}>{it.styleName}</td>
                     <td style={{ padding: '9px 12px' }}>
