@@ -73,14 +73,20 @@ export default function Packing() {
     }
     try {
       const detail: SchoolOrderDetail = await schoolOrdersApi.getById(soId)
-      const autoLines: Line[] = detail.items.map(item => ({
-        styleId: item.styleId,
-        accessoryId: '',
-        gender: item.gender,
-        standard: item.standard,
-        size: item.size,
-        quantity: item.quantity,
-      }))
+      const grouped = new Map<string, Line>()
+      detail.items.forEach(item => {
+        const key = `${item.styleId}|${item.gender}|${item.standard}`
+        const g = grouped.get(key)
+        if (g) g.quantity += item.quantity
+        else grouped.set(key, {
+          styleId: item.styleId,
+          accessoryId: '',
+          gender: item.gender,
+          standard: item.standard,
+          quantity: item.quantity,
+        })
+      })
+      const autoLines: Line[] = Array.from(grouped.values())
       setLockedSchoolId(detail.schoolId)
       setForm(p => ({
         ...p,
@@ -202,7 +208,7 @@ export default function Packing() {
             )}
           </div>
           {form.items.map((line, idx) => (
-            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr 1fr auto', gap: 8, marginBottom: 8 }}>
+            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 1fr 1fr auto', gap: 8, marginBottom: 8 }}>
               <SearchableSelect
                 value={line.styleId}
                 onChange={v => updateLine(idx, { styleId: v })}
@@ -221,7 +227,6 @@ export default function Packing() {
                 <option value="UNISEX">UNISEX</option>
               </select>
               <input placeholder="Std" value={line.standard} onChange={e => updateLine(idx, { standard: e.target.value })} />
-              <input placeholder="Size (M/L/XL)" value={line.size ?? ''} onChange={e => updateLine(idx, { size: e.target.value || undefined })} />
               <input type="number" placeholder="Qty" value={line.quantity || ''} onChange={e => updateLine(idx, { quantity: Number(e.target.value) })} />
               <button
                 className="btn-icon"

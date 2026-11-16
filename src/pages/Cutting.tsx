@@ -24,6 +24,8 @@ interface LineState {
   gender: string
   standard: string
   size: string
+  /** Read-only breakdown from the school order, e.g. "28 (285), 30 (340)" */
+  sizeHint?: string
   quantity: number
   fabricConsumed: number
   notes?: string
@@ -40,18 +42,21 @@ const emptyLine = (): LineState => ({
 function RollPicker({
   rolls,
   selectedIds,
+  blockedIds = [],
   onToggle,
   requiredMeters,
   unitOfMeasure,
 }: {
   rolls: FabricRoll[]
   selectedIds: string[]
+  /** Rolls already picked on another line of this form */
+  blockedIds?: string[]
   onToggle: (id: string) => void
   requiredMeters?: number
   unitOfMeasure: string
 }) {
   const unit = shortUnit(unitOfMeasure)
-  const availableRolls = rolls.filter(r => r.status === 'AVAILABLE')
+  const availableRolls = rolls.filter(r => r.status === 'AVAILABLE' && !blockedIds.includes(r.id))
   const reservedRolls  = rolls.filter(r => r.status === 'IN_USE')
 
   if (rolls.length === 0) return (
@@ -292,17 +297,27 @@ export default function Cutting() {
       const detail: SchoolOrderDetail = await schoolOrdersApi.getById(soId)
       setLockedSchoolId(detail.schoolId)
       setSchoolId(detail.schoolId)
-      const autoLines: LineState[] = detail.items.map(item => {
+      // Group per-size school-order items into one line per style+gender+standard
+      const groups = new Map<string, { item: typeof detail.items[number]; qty: number; sizes: string[] }>()
+      detail.items.forEach(item => {
+        const key = `${item.styleId}|${item.gender}|${item.standard}`
+        const g = groups.get(key)
+        const sizeLabel = item.size ? `${item.size} (${item.quantity})` : ''
+        if (g) { g.qty += item.quantity; if (sizeLabel) g.sizes.push(sizeLabel) }
+        else groups.set(key, { item, qty: item.quantity, sizes: sizeLabel ? [sizeLabel] : [] })
+      })
+      const autoLines: LineState[] = Array.from(groups.values()).map(({ item, qty, sizes }) => {
         const rate = styleMapRef.current[item.styleId]?.fabricConsumptionRate
-        const fabricConsumed = rate && item.quantity > 0 ? Math.round(item.quantity * rate * 100) / 100 : 0
+        const fabricConsumed = rate && qty > 0 ? Math.round(qty * rate * 100) / 100 : 0
         return {
           styleId: item.styleId,
           fabricId: '',
           colourId: '',
           gender: item.gender,
           standard: item.standard,
-          size: item.size ?? '',
-          quantity: item.quantity,
+          size: '',
+          sizeHint: sizes.join(', '),
+          quantity: qty,
           fabricConsumed,
           availableRolls: [],
           selectedRollIds: [],
@@ -327,6 +342,11 @@ export default function Cutting() {
       }
       return merged
     }))
+  }
+
+  const applyFabricToAll = async (fabricId: string, colourId: string) => {
+    setLines(prev => prev.map((l, i) => i === 0 ? l : { ...l, colourId }))
+    for (let i = 1; i < lines.length; i++) await loadRollsForLine(i, fabricId)
   }
 
   const removeLine = (idx: number) => setLines(prev => prev.filter((_, i) => i !== idx))
@@ -538,7 +558,7 @@ export default function Cutting() {
                   </button>
                 </div>
                 {/* Row 2: Colour | Gender | Std | Size | Qty */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(110px, 1.5fr) 90px minmax(80px, 1fr) minmax(80px, 1fr) 75px', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(110px, 1.5fr) 90px minmax(80px, 1fr) 90px', gap: 6, alignItems: 'center', marginBottom: 8 }}>
                   <SearchableSelect
                     value={line.colourId ?? ''}
                     onChange={v => updateLine(idx, { colourId: v })}
@@ -553,12 +573,22 @@ export default function Cutting() {
                   </select>
                   <input placeholder="Std" value={line.standard} onChange={e => updateLine(idx, { standard: e.target.value })}
                     style={{ width: '100%', minWidth: 0 }} />
-                  <input placeholder="Size (M/L/XL)" value={line.size} onChange={e => updateLine(idx, { size: e.target.value })}
-                    style={{ width: '100%', minWidth: 0 }} />
                   <input type="number" placeholder="Qty" value={line.quantity || ''}
                     onChange={e => updateLine(idx, { quantity: Number(e.target.value) })}
                     style={{ width: '100%', minWidth: 0 }} />
                 </div>
+
+                {line.sizeHint && (
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>
+                    Sizes: {line.sizeHint} &nbsp;·&nbsp; <strong>Total {line.quantity} pcs</strong>
+                  </div>
+                )}
+                {idx === 0 && line.fabricId && lines.length > 1 && (
+                  <button type="button" className="btn btn-sm btn-secondary" style={{ marginBottom: 8 }}
+                    onClick={() => applyFabricToAll(line.fabricId, line.colourId)}>
+                    Use this fabric &amp; colour for all lines
+                  </button>
+                )}
 
                 {/* Row 2: Roll picker or fabric consumed display */}
                 {line.fabricId ? (() => {
@@ -587,6 +617,7 @@ export default function Cutting() {
                       <RollPicker
                         rolls={line.availableRolls}
                         selectedIds={line.selectedRollIds}
+                        blockedIds={lines.flatMap((l, i) => i === idx ? [] : l.selectedRollIds)}
                         onToggle={rollId => toggleRoll(idx, rollId)}
                         requiredMeters={requiredMeters}
                         unitOfMeasure={lineUnit}
@@ -636,6 +667,11 @@ export default function Cutting() {
             onClick={() => setLines(prev => [...prev, emptyLine()])}>
             + Add line
           </button>
+
+          <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+            Total: <strong>{lines.reduce((s, l) => s + (l.quantity || 0), 0)} pcs</strong>
+            {' · '}Fabric required: <strong>{lines.reduce((s, l) => s + (l.fabricConsumed || 0), 0).toFixed(2)}</strong>
+          </div>
 
           <FormActions onCancel={() => setShowForm(false)} onSave={checkAndSave} saving={saving} />
         </Modal>

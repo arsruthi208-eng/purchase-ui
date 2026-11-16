@@ -61,13 +61,15 @@ export default function UnitDc() {
       const detail = await cuttingApi.getById(id)
       setSelectedCutting(detail)
       // Auto-fill items from cutting order
-      const autoItems = detail.items.map(ci => ({
-        styleId: ci.styleId ?? '',
-        gender: ci.gender,
-        standard: ci.standard,
-        size: ci.size,
-        quantity: ci.quantity,
-      }))
+      // One line per style+gender+standard (sizes merged, also for older per-size cuttings)
+      const grouped = new Map<string, { styleId: string; gender: string; standard: string; quantity: number }>()
+      detail.items.forEach(ci => {
+        const key = `${ci.styleId}|${ci.gender}|${ci.standard}`
+        const g = grouped.get(key)
+        if (g) g.quantity += ci.quantity
+        else grouped.set(key, { styleId: ci.styleId ?? '', gender: ci.gender, standard: ci.standard, quantity: ci.quantity })
+      })
+      const autoItems = Array.from(grouped.values())
       setForm(p => ({ ...p, items: autoItems.length > 0 ? autoItems : [emptyLine()] }))
     } catch {
       showError('Load Failed', 'Could not load cutting order details.')

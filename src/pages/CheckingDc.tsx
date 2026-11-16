@@ -60,9 +60,14 @@ export default function CheckingDc() {
     try {
       const detail = await schoolOrdersApi.getById(id)
       setSelectedOrder(detail)
-      const autoItems = detail.items.map(it => ({
-        styleId: it.styleId, gender: it.gender, standard: it.standard, quantity: it.quantity,
-      }))
+      const grouped = new Map<string, { styleId: string; gender: string; standard: string; quantity: number }>()
+      detail.items.forEach(it => {
+        const key = `${it.styleId}|${it.gender}|${it.standard}`
+        const g = grouped.get(key)
+        if (g) g.quantity += it.quantity
+        else grouped.set(key, { styleId: it.styleId, gender: it.gender, standard: it.standard, quantity: it.quantity })
+      })
+      const autoItems = Array.from(grouped.values())
       setForm(p => ({ ...p, schoolOrderId: id, items: autoItems.length > 0 ? autoItems : [emptyLine()] }))
     } catch { showError('Load Failed', 'Could not load school order details.') }
     finally { setLoadingOrder(false) }
