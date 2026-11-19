@@ -7,9 +7,33 @@ export interface PoSummary {
   purchasePartyName?: string
   schoolOrderNumber?: string
   schoolName?: string
+  schoolOrderNumbers?: string[]
+  schoolNames?: string[]
+  expectedDeliveryDate?: string
   poDate: string
   status: string
   itemCount: number
+}
+
+export interface PoStyleRequirement {
+  styleId: string
+  styleName: string
+  gender?: string
+  standard?: string
+  quantity: number
+  consumptionRate?: number
+  requiredMeters: number
+  missingRate: boolean
+}
+
+export interface PoSchoolOrder {
+  id: string
+  orderNumber: string
+  schoolName: string
+  orderDate: string
+  totalQuantity: number
+  requiredMeters: number
+  styles: PoStyleRequirement[]
 }
 
 export interface PoSignature {
@@ -32,6 +56,10 @@ export interface PoDetail {
   schoolName?: string
   schoolOrderId?: string
   schoolOrderNumber?: string
+  schoolOrders?: PoSchoolOrder[]
+  styleSummary?: PoStyleRequirement[]
+  totalSchoolQuantity?: number
+  totalRequiredMeters?: number
   poDate: string
   expectedDeliveryDate?: string
   deliveryAddress?: string
@@ -68,7 +96,8 @@ export interface CreatePoRequest {
   purchasePartyId: string
   styleId?: string
   schoolId?: string
-  schoolOrderId: string
+  schoolOrderId?: string
+  schoolOrderIds: string[]
   poDate: string
   expectedDeliveryDate?: string
   deliveryAddress?: string

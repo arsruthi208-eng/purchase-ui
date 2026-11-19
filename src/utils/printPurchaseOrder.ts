@@ -165,6 +165,23 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
     </tbody>
   </table>`
 
+  const reqOrders = po.schoolOrders ?? []
+  const reqHtml = !isAcc && reqOrders.length > 0
+    ? `<table class="items-tbl req-tbl">
+    <thead><tr><th>School Order</th><th>Style</th><th style="width:60px">Qty</th><th style="width:70px">Rate (m)</th><th style="width:90px">Required (m)</th></tr></thead>
+    <tbody>
+      ${reqOrders.map(so => so.styles.map((st, i) => `<tr>
+        <td>${i === 0 ? so.orderNumber + ' — ' + so.schoolName : ''}</td>
+        <td>${st.styleName}${st.standard ? ' (' + st.standard + ')' : ''}</td>
+        <td style="text-align:right">${fmtN(st.quantity)}</td>
+        <td style="text-align:right">${st.consumptionRate ?? '—'}</td>
+        <td style="text-align:right">${fmtN(st.requiredMeters)}</td></tr>`).join('')).join('')}
+      <tr class="total-row"><td colspan="2" style="text-align:right">Total</td>
+        <td style="text-align:right">${fmtN(po.totalSchoolQuantity ?? 0)}</td><td></td>
+        <td style="text-align:right">${fmtN(po.totalRequiredMeters ?? 0)}</td></tr>
+    </tbody></table>`
+    : ''
+
   const termsHtml = isAcc
     ? `<div class="col">
         <ol>
@@ -301,6 +318,8 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
     .meta-val { font-weight: 700; }
     .mono { font-family: ui-monospace, Menlo, monospace; }
 
+    .req-tbl td, .req-tbl th { font-size: 10.5px; padding: 3px 6px; }
+    .req-tbl .total-row td { font-size: 10.5px; padding: 3px 6px; }
     .items-tbl { margin-bottom: 8px; font-size: 12.5px; flex-shrink: 0; }
     .items-tbl th {
       border: 1px solid #999; padding: 6px 6px; font-weight: 700;
@@ -440,6 +459,8 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
   </div>
 
   ${itemsTable}
+
+  ${reqHtml}
 
   <table class="info-tbl">
     <tbody>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, FileText, Trash2, Pencil } from '../icons'
 import { SearchableSelect } from '../components/ui/SearchableSelect'
@@ -7,7 +7,8 @@ import { purchasePartiesApi, type PurchaseParty } from '../api/purchaseParties'
 import { accessoriesApi, type Accessory } from '../api/accessories'
 import { fabricsApi, type Fabric } from '../api/fabrics'
 import { coloursApi, type Colour } from '../api/colours'
-import { schoolOrdersApi, type SchoolOrderSummary } from '../api/schoolOrders'
+import { schoolOrdersApi, type SchoolOrderSummary, type SchoolOrderDetail } from '../api/schoolOrders'
+import { stylesApi, type Style } from '../api/styles'
 import { useApiList } from '../hooks/useApiData'
 import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
@@ -49,12 +50,14 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
   const { data: parties }      = useApiList<PurchaseParty>(() => purchasePartiesApi.list(kind), [kind])
   const { data: colours }      = useApiList<Colour>(() => coloursApi.list())
   const { data: schoolOrders } = useApiList<SchoolOrderSummary>(() => schoolOrdersApi.list())
+  const { data: styles } = useApiList<Style>(() => stylesApi.list())
+  const [orderDetails, setOrderDetails] = useState<Record<string, SchoolOrderDetail>>({})
   const [filter, setFilter] = useState('')
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<CreatePoRequest>({
     purchasePartyId: '',
-    schoolOrderId: '',
+    schoolOrderIds: [],
     poDate: today(),
     expectedDeliveryDate: '',
     shippingAddress: '',
@@ -113,7 +116,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
     setEditingId(null)
     setForm({
       purchasePartyId: '',
-      schoolOrderId: '',
+      schoolOrderIds: [],
       poDate: today(),
       expectedDeliveryDate: '',
       shippingAddress: PRESET_ADDRESSES[0],
@@ -132,7 +135,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
       setEditingId(po.id)
       setForm({
         purchasePartyId: detail.purchasePartyId ?? '',
-        schoolOrderId: detail.schoolOrderId ?? '',
+        schoolOrderIds: detail.schoolOrders?.length ? detail.schoolOrders.map(o => o.id) : (detail.schoolOrderId ? [detail.schoolOrderId] : []),
         poDate: detail.poDate,
         expectedDeliveryDate: detail.expectedDeliveryDate ?? '',
         shippingAddress: detail.shippingAddress ?? '',
@@ -175,15 +178,44 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
     )
   }
 
-  /** Auto-fill orderedQuantity = school_order.totalQty × fabric.composition when both are set */
-  const calcMeters = (fabricId: string, schoolOrderId: string): number | null => {
-    const so = schoolOrders.find(s => s.id === schoolOrderId)
-    const fab = fabrics.find(f => f.id === fabricId)
-    if (so && fab && fab.composition > 0) {
-      return parseFloat((so.totalQuantity * fab.composition).toFixed(2))
+  const styleRate = useMemo(() => {
+    const m: Record<string, number | undefined> = {}
+    styles.forEach(st => { m[st.id] = st.fabricConsumptionRate })
+    return m
+  }, [styles])
+
+  // Fetch item detail for every selected school order (needed for the per-style breakdown)
+  useEffect(() => {
+    form.schoolOrderIds.forEach(id => {
+      if (orderDetails[id]) return
+      schoolOrdersApi.getById(id)
+        .then(d => setOrderDetails(p => ({ ...p, [id]: d })))
+        .catch(() => { /* panel shows loading state */ })
+    })
+  }, [form.schoolOrderIds, orderDetails])
+
+  /** Per-order, per-style requirement: qty x style consumption rate */
+  const requirement = useMemo(() => {
+    const orders = form.schoolOrderIds.map(id => {
+      const sum = schoolOrders.find(o => o.id === id)
+      const det = orderDetails[id]
+      const rows = (det?.items ?? []).map(i => {
+        const rate = styleRate[i.styleId]
+        return { key: i.id, styleId: i.styleId, styleName: i.styleName, gender: i.gender, standard: i.standard,
+          qty: i.quantity, rate, meters: parseFloat(((rate ?? 0) * i.quantity).toFixed(2)) }
+      })
+      return { id, label: sum ? sum.orderNumber : id, school: sum?.schoolName ?? det?.schoolName ?? '',
+        orderDate: sum?.orderDate ?? det?.orderDate ?? '', loaded: !!det, rows,
+        qty: rows.reduce((a, r) => a + r.qty, 0), meters: parseFloat(rows.reduce((a, r) => a + r.meters, 0).toFixed(2)) }
+    })
+    return {
+      orders,
+      totalQty: orders.reduce((a, o) => a + o.qty, 0),
+      totalMeters: parseFloat(orders.reduce((a, o) => a + o.meters, 0).toFixed(2)),
+      missingRate: orders.some(o => o.rows.some(r => r.rate == null)),
+      loading: orders.some(o => !o.loaded),
     }
-    return null
-  }
+  }, [form.schoolOrderIds, orderDetails, schoolOrders, styleRate])
 
   const updateLine = (idx: number, patch: Partial<Line>) => {
     setForm(p => ({
@@ -200,9 +232,8 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
           if (fab) updated.unitOfMeasure = fab.unitOfMeasure
           updated.weightGsm = fab?.weightGsm
           updated.widthInches = fab?.widthInches
-          if (p.schoolOrderId) {
-            const meters = calcMeters(updated.fabricId ?? '', p.schoolOrderId)
-            if (meters !== null) updated.orderedQuantity = meters
+          if (!isAccessory && !updated.orderedQuantity && requirement.totalMeters > 0) {
+            updated.orderedQuantity = requirement.totalMeters
           }
         }
         return updated
@@ -215,7 +246,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
   }
 
   const save = async () => {
-    if (!form.schoolOrderId) { setError('School Order is required — a PO must be linked to a school order'); return }
+    if (form.schoolOrderIds.length === 0) { setError('Add at least one school order — a PO must be linked to a school order'); return }
     if (!form.purchasePartyId || !form.poDate) { setError('Purchase party and PO date are required'); return }
     if (form.items.length === 0) { setError('Add at least one line'); return }
     if (isAccessory) {
@@ -235,6 +266,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
         transportDetails: form.transportDetails || undefined,
         notes: form.notes || undefined,
         poKind: kind,
+        schoolOrderId: form.schoolOrderIds[0],
         items: form.items.map(l => ({
           ...l,
           colourId: l.colourId || undefined,
@@ -311,40 +343,31 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
               <input type="date" value={form.poDate} onChange={e => setForm(p => ({ ...p, poDate: e.target.value }))} />
             </div>
             <div className="form-group">
-              <label>School Order *</label>
+              <label>School Orders * <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(add more than one if needed)</span></label>
               <SearchableSelect
-                value={form.schoolOrderId}
-                onChange={newSoId => {
-                  setForm(p => ({
-                    ...p,
-                    schoolOrderId: newSoId,
-                    items: p.items.map(line => {
-                      if (!line.fabricId || !newSoId) return line
-                      const so = schoolOrders.find(s => s.id === newSoId)
-                      const fab = fabrics.find(f => f.id === line.fabricId)
-                      if (so && fab && fab.composition > 0) {
-                        return {
-                          ...line,
-                          unitOfMeasure: fab.unitOfMeasure,
-                          orderedQuantity: parseFloat((so.totalQuantity * fab.composition).toFixed(2)),
-                        }
-                      }
-                      return line
-                    }),
-                  }))
-                }}
-                placeholder="— Select school order —"
-                options={schoolOrders.map(so => ({ value: so.id, label: `${so.orderNumber} — ${so.schoolName}` }))}
-                style={{ borderColor: !form.schoolOrderId ? '#fca5a5' : undefined }}
+                value=""
+                onChange={id => { if (id) setForm(p => p.schoolOrderIds.includes(id) ? p : ({ ...p, schoolOrderIds: [...p.schoolOrderIds, id] })) }}
+                placeholder={form.schoolOrderIds.length ? '+ Add another school order' : '— Select school order —'}
+                options={schoolOrders
+                  .filter(so => !form.schoolOrderIds.includes(so.id))
+                  .map(so => ({ value: so.id, label: `${so.orderNumber} — ${so.schoolName}` }))}
+                style={{ borderColor: form.schoolOrderIds.length === 0 ? '#fca5a5' : undefined }}
               />
-              {form.schoolOrderId && (() => {
-                const so = schoolOrders.find(s => s.id === form.schoolOrderId)
-                return so ? (
-                  <div style={{ marginTop: 4, fontSize: 12, color: 'var(--text-muted)' }}>
-                    {so.schoolName} · {so.itemCount} items · {so.totalQuantity} pcs
-                  </div>
-                ) : null
-              })()}
+              {form.schoolOrderIds.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                  {form.schoolOrderIds.map(id => {
+                    const so = schoolOrders.find(s => s.id === id)
+                    return (
+                      <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 14, padding: '2px 10px', fontSize: 12 }}>
+                        <strong>{so?.orderNumber ?? id}</strong>
+                        {so && <span style={{ color: 'var(--text-muted)' }}>{so.schoolName} · {so.totalQuantity} pcs</span>}
+                        <button type="button" title="Remove" style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 14, lineHeight: 1, padding: 0 }}
+                          onClick={() => setForm(p => ({ ...p, schoolOrderIds: p.schoolOrderIds.filter(x => x !== id) }))}>×</button>
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
             </div>
             <div className="form-group">
               <label>Expected Delivery</label>
@@ -413,6 +436,52 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
             </div>
           </div>
 
+          {!isAccessory && requirement.orders.length > 0 && (
+            <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12, marginBottom: 14, background: '#f8fafc' }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Fabric Requirement by Style</div>
+              {requirement.orders.map(o => (
+                <div key={o.id} style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                    {o.label} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>· {o.school}{o.orderDate ? ` · ${o.orderDate}` : ''}</span>
+                  </div>
+                  {!o.loaded ? <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading…</div> : (
+                    <table style={{ width: '100%', fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ color: 'var(--text-muted)' }}>
+                          <th style={{ textAlign: 'left' }}>Style</th><th style={{ textAlign: 'left' }}>Gender / Std</th>
+                          <th style={{ textAlign: 'right' }}>Qty</th><th style={{ textAlign: 'right' }}>Rate (m/pc)</th><th style={{ textAlign: 'right' }}>Required (m)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {o.rows.map(r => (
+                          <tr key={r.key}>
+                            <td>{r.styleName}</td>
+                            <td>{[r.gender, r.standard].filter(Boolean).join(' / ') || '—'}</td>
+                            <td style={{ textAlign: 'right' }}>{r.qty}</td>
+                            <td style={{ textAlign: 'right', color: r.rate == null ? '#dc2626' : undefined }}>{r.rate ?? 'not set'}</td>
+                            <td style={{ textAlign: 'right' }}>{r.meters.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                        <tr style={{ fontWeight: 600, borderTop: '1px solid var(--border)' }}>
+                          <td colSpan={2}>Subtotal</td>
+                          <td style={{ textAlign: 'right' }}>{o.qty}</td><td />
+                          <td style={{ textAlign: 'right' }}>{o.meters.toLocaleString()}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 13, borderTop: '2px solid var(--border)', paddingTop: 6 }}>
+                <span>Total ({requirement.orders.length} order{requirement.orders.length !== 1 ? 's' : ''}) · {requirement.totalQty} pcs</span>
+                <span>{requirement.totalMeters.toLocaleString()} m required</span>
+              </div>
+              {requirement.missingRate && (
+                <div style={{ fontSize: 11, color: '#dc2626', marginTop: 4 }}>Some styles have no consumption rate set in Style master; they count as 0 m.</div>
+              )}
+            </div>
+          )}
+
           <div style={{ marginTop: 8, marginBottom: 8 }}>
             <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{isAccessory ? 'Accessory Lines' : 'Fabric Lines'}</div>
             {isAccessory ? (
@@ -457,11 +526,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
               <span />
             </div>
             {form.items.map((line, idx) => {
-              const selectedFab = fabrics.find(f => f.id === line.fabricId)
-              const selectedSo  = schoolOrders.find(s => s.id === form.schoolOrderId)
-              const autoCalcHint = selectedFab && selectedSo && selectedFab.composition > 0
-                ? `${selectedSo.totalQuantity} qty × ${selectedFab.composition} = ${parseFloat((selectedSo.totalQuantity * selectedFab.composition).toFixed(2))} ${shortUnit(selectedFab.unitOfMeasure)}`
-                : null
+              const autoCalcHint = requirement.totalMeters > 0 ? `${requirement.totalMeters.toLocaleString()} m` : null
               return (
                 <div key={idx} style={{ marginBottom: 10 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 0.8fr 0.9fr 0.9fr 0.8fr 0.8fr auto', gap: 8, alignItems: 'center' }}>
@@ -515,9 +580,12 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                       <Trash2 size={15} />
                     </button>
                   </div>
-                  {autoCalcHint && (
-                    <div style={{ fontSize: 11, color: 'var(--navy)', marginTop: 3, paddingLeft: 2, fontStyle: 'italic' }}>
-                      Auto-calculated: {autoCalcHint}
+                  {autoCalcHint && line.orderedQuantity !== requirement.totalMeters && (
+                    <div style={{ fontSize: 11, marginTop: 3, paddingLeft: 2 }}>
+                      <button type="button" className="btn btn-sm btn-secondary" style={{ padding: '1px 8px', fontSize: 11 }}
+                        onClick={() => updateLine(idx, { orderedQuantity: requirement.totalMeters })}>
+                        Use total required ({autoCalcHint})
+                      </button>
                     </div>
                   )}
                 </div>
@@ -574,8 +642,8 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                 >
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{po.poNumber}</td>
                   <td style={{ fontSize: 12 }}>
-                    <div style={{ fontWeight: 600 }}>{po.schoolOrderNumber ?? '—'}</div>
-                    {po.schoolName && <div style={{ color: 'var(--text-muted)' }}>{po.schoolName}</div>}
+                    <div style={{ fontWeight: 600 }}>{po.schoolOrderNumbers?.length ? po.schoolOrderNumbers.join(', ') : (po.schoolOrderNumber ?? '—')}</div>
+                    {(po.schoolNames?.length || po.schoolName) && <div style={{ color: 'var(--text-muted)' }}>{po.schoolNames?.length ? po.schoolNames.join(', ') : po.schoolName}</div>}
                   </td>
                   <td>{po.purchasePartyName ?? '—'}</td>
                   <td>{po.poDate}</td>

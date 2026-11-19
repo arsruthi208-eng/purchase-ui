@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { FileText, Printer, Download } from '../icons'
 import { purchaseOrdersApi, type PoDetail } from '../api/purchaseOrders'
@@ -163,7 +163,7 @@ export default function PurchaseOrderDetail() {
           <InfoRow label="PO Date"           value={po.poDate} />
           <InfoRow label="Expected Delivery" value={po.expectedDeliveryDate ?? '—'} />
           <InfoRow label="Status"            value={po.status.replace(/_/g, ' ')} />
-          {po.schoolOrderNumber && <InfoRow label="Sales Order"  value={po.schoolOrderNumber} />}
+          {po.schoolOrderNumber && <InfoRow label={(po.schoolOrders?.length ?? 0) > 1 ? 'Sales Orders' : 'Sales Order'} value={po.schoolOrderNumber} />}
           {po.schoolName        && <InfoRow label="School"        value={po.schoolName} />}
           <InfoRow label="Purchase Party"    value={po.purchasePartyName ?? '—'} />
           {po.purchasePartyPhone   && <InfoRow label="Party Phone"   value={po.purchasePartyPhone} />}
@@ -222,6 +222,54 @@ export default function PurchaseOrderDetail() {
           </div>
         )
       })()}
+
+      {/* ── Fabric requirement by style ── */}
+      {!isAccessory && (po.schoolOrders?.length ?? 0) > 0 && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="card-header">
+            <h2>Fabric Requirement by Style</h2>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+              {po.totalSchoolQuantity} pcs · {(po.totalRequiredMeters ?? 0).toLocaleString()} m
+            </span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>School Order</th><th>Style</th><th>Gender / Std</th>
+                <th style={{ textAlign: 'right' }}>Qty</th>
+                <th style={{ textAlign: 'right' }}>Rate (m/pc)</th>
+                <th style={{ textAlign: 'right' }}>Required (m)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {po.schoolOrders!.map(so => (
+                <Fragment key={so.id}>
+                  {so.styles.map((st, i) => (
+                    <tr key={so.id + i}>
+                      <td>{i === 0 ? <><div style={{ fontWeight: 600 }}>{so.orderNumber}</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{so.schoolName} · {so.orderDate}</div></> : ''}</td>
+                      <td>{st.styleName}</td>
+                      <td>{[st.gender, st.standard].filter(Boolean).join(' / ') || '—'}</td>
+                      <td style={{ textAlign: 'right' }}>{st.quantity}</td>
+                      <td style={{ textAlign: 'right', color: st.missingRate ? '#dc2626' : undefined }}>{st.consumptionRate ?? 'not set'}</td>
+                      <td style={{ textAlign: 'right' }}>{st.requiredMeters.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                  <tr key={so.id + 'sub'} style={{ fontWeight: 600, background: '#f8fafc' }}>
+                    <td colSpan={3}>Subtotal {so.orderNumber}</td>
+                    <td style={{ textAlign: 'right' }}>{so.totalQuantity}</td><td />
+                    <td style={{ textAlign: 'right' }}>{so.requiredMeters.toLocaleString()}</td>
+                  </tr>
+                </Fragment>
+              ))}
+              <tr style={{ fontWeight: 700 }}>
+                <td colSpan={3}>Total</td>
+                <td style={{ textAlign: 'right' }}>{po.totalSchoolQuantity}</td><td />
+                <td style={{ textAlign: 'right' }}>{(po.totalRequiredMeters ?? 0).toLocaleString()}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* ── Section 3: Line items ── */}
       <div className="card">
