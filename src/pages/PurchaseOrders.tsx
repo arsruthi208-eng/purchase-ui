@@ -436,9 +436,9 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
             </div>
           </div>
 
-          {!isAccessory && requirement.orders.length > 0 && (
+          {requirement.orders.length > 0 && (
             <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12, marginBottom: 14, background: '#f8fafc' }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Fabric Requirement by Style</div>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{isAccessory ? 'School Orders Summary' : 'Fabric Requirement by Style'}</div>
               {requirement.orders.map(o => (
                 <div key={o.id} style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
@@ -449,7 +449,8 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                       <thead>
                         <tr style={{ color: 'var(--text-muted)' }}>
                           <th style={{ textAlign: 'left' }}>Style</th><th style={{ textAlign: 'left' }}>Gender / Std</th>
-                          <th style={{ textAlign: 'right' }}>Qty</th><th style={{ textAlign: 'right' }}>Rate (m/pc)</th><th style={{ textAlign: 'right' }}>Required (m)</th>
+                          <th style={{ textAlign: 'right' }}>Qty</th>
+                          {!isAccessory && <><th style={{ textAlign: 'right' }}>Rate (m/pc)</th><th style={{ textAlign: 'right' }}>Required (m)</th></>}
                         </tr>
                       </thead>
                       <tbody>
@@ -458,14 +459,16 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                             <td>{r.styleName}</td>
                             <td>{[r.gender, r.standard].filter(Boolean).join(' / ') || '—'}</td>
                             <td style={{ textAlign: 'right' }}>{r.qty}</td>
-                            <td style={{ textAlign: 'right', color: r.rate == null ? '#dc2626' : undefined }}>{r.rate ?? 'not set'}</td>
-                            <td style={{ textAlign: 'right' }}>{r.meters.toLocaleString()}</td>
+                            {!isAccessory && <>
+                              <td style={{ textAlign: 'right', color: r.rate == null ? '#dc2626' : undefined }}>{r.rate ?? 'not set'}</td>
+                              <td style={{ textAlign: 'right' }}>{r.meters.toLocaleString()}</td>
+                            </>}
                           </tr>
                         ))}
                         <tr style={{ fontWeight: 600, borderTop: '1px solid var(--border)' }}>
                           <td colSpan={2}>Subtotal</td>
-                          <td style={{ textAlign: 'right' }}>{o.qty}</td><td />
-                          <td style={{ textAlign: 'right' }}>{o.meters.toLocaleString()}</td>
+                          <td style={{ textAlign: 'right' }}>{o.qty}</td>
+                          {!isAccessory && <><td /><td style={{ textAlign: 'right' }}>{o.meters.toLocaleString()}</td></>}
                         </tr>
                       </tbody>
                     </table>
@@ -474,9 +477,9 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
               ))}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 13, borderTop: '2px solid var(--border)', paddingTop: 6 }}>
                 <span>Total ({requirement.orders.length} order{requirement.orders.length !== 1 ? 's' : ''}) · {requirement.totalQty} pcs</span>
-                <span>{requirement.totalMeters.toLocaleString()} m required</span>
+                {!isAccessory ? <span>{requirement.totalMeters.toLocaleString()} m required</span> : <span />}
               </div>
-              {requirement.missingRate && (
+              {!isAccessory && requirement.missingRate && (
                 <div style={{ fontSize: 11, color: '#dc2626', marginTop: 4 }}>Some styles have no consumption rate set in Style master; they count as 0 m.</div>
               )}
             </div>

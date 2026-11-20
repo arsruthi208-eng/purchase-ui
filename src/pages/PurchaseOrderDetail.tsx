@@ -224,12 +224,12 @@ export default function PurchaseOrderDetail() {
       })()}
 
       {/* ── Fabric requirement by style ── */}
-      {!isAccessory && (po.schoolOrders?.length ?? 0) > 0 && (
+      {(po.schoolOrders?.length ?? 0) > 0 && (
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="card-header">
-            <h2>Fabric Requirement by Style</h2>
+            <h2>{isAccessory ? 'School Orders Summary' : 'Fabric Requirement by Style'}</h2>
             <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-              {po.totalSchoolQuantity} pcs · {(po.totalRequiredMeters ?? 0).toLocaleString()} m
+              {po.totalSchoolQuantity} pcs{isAccessory ? '' : ` · ${(po.totalRequiredMeters ?? 0).toLocaleString()} m`}
             </span>
           </div>
           <table>
@@ -237,8 +237,7 @@ export default function PurchaseOrderDetail() {
               <tr>
                 <th>School Order</th><th>Style</th><th>Gender / Std</th>
                 <th style={{ textAlign: 'right' }}>Qty</th>
-                <th style={{ textAlign: 'right' }}>Rate (m/pc)</th>
-                <th style={{ textAlign: 'right' }}>Required (m)</th>
+                {!isAccessory && <><th style={{ textAlign: 'right' }}>Rate (m/pc)</th><th style={{ textAlign: 'right' }}>Required (m)</th></>}
               </tr>
             </thead>
             <tbody>
@@ -250,21 +249,23 @@ export default function PurchaseOrderDetail() {
                       <td>{st.styleName}</td>
                       <td>{[st.gender, st.standard].filter(Boolean).join(' / ') || '—'}</td>
                       <td style={{ textAlign: 'right' }}>{st.quantity}</td>
-                      <td style={{ textAlign: 'right', color: st.missingRate ? '#dc2626' : undefined }}>{st.consumptionRate ?? 'not set'}</td>
-                      <td style={{ textAlign: 'right' }}>{st.requiredMeters.toLocaleString()}</td>
+                      {!isAccessory && <>
+                        <td style={{ textAlign: 'right', color: st.missingRate ? '#dc2626' : undefined }}>{st.consumptionRate ?? 'not set'}</td>
+                        <td style={{ textAlign: 'right' }}>{st.requiredMeters.toLocaleString()}</td>
+                      </>}
                     </tr>
                   ))}
                   <tr key={so.id + 'sub'} style={{ fontWeight: 600, background: '#f8fafc' }}>
                     <td colSpan={3}>Subtotal {so.orderNumber}</td>
-                    <td style={{ textAlign: 'right' }}>{so.totalQuantity}</td><td />
-                    <td style={{ textAlign: 'right' }}>{so.requiredMeters.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right' }}>{so.totalQuantity}</td>
+                    {!isAccessory && <><td /><td style={{ textAlign: 'right' }}>{so.requiredMeters.toLocaleString()}</td></>}
                   </tr>
                 </Fragment>
               ))}
               <tr style={{ fontWeight: 700 }}>
                 <td colSpan={3}>Total</td>
-                <td style={{ textAlign: 'right' }}>{po.totalSchoolQuantity}</td><td />
-                <td style={{ textAlign: 'right' }}>{(po.totalRequiredMeters ?? 0).toLocaleString()}</td>
+                <td style={{ textAlign: 'right' }}>{po.totalSchoolQuantity}</td>
+                {!isAccessory && <><td /><td style={{ textAlign: 'right' }}>{(po.totalRequiredMeters ?? 0).toLocaleString()}</td></>}
               </tr>
             </tbody>
           </table>

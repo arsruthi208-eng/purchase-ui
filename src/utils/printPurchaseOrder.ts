@@ -166,7 +166,18 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
   </table>`
 
   const reqOrders = po.schoolOrders ?? []
-  const reqHtml = !isAcc && reqOrders.length > 0
+  const reqHtml = isAcc && reqOrders.length > 0
+    ? `<table class="items-tbl req-tbl">
+    <thead><tr><th>School Order</th><th>Style</th><th style="width:70px">Qty (pcs)</th></tr></thead>
+    <tbody>
+      ${reqOrders.map(so => so.styles.map((st, i) => `<tr>
+        <td>${i === 0 ? so.orderNumber + ' — ' + so.schoolName : ''}</td>
+        <td>${st.styleName}${st.standard ? ' (' + st.standard + ')' : ''}</td>
+        <td style="text-align:right">${fmtN(st.quantity)}</td></tr>`).join('')).join('')}
+      <tr class="total-row"><td colspan="2" style="text-align:right">Total</td>
+        <td style="text-align:right">${fmtN(po.totalSchoolQuantity ?? 0)}</td></tr>
+    </tbody></table>`
+    : !isAcc && reqOrders.length > 0
     ? `<table class="items-tbl req-tbl">
     <thead><tr><th>School Order</th><th>Style</th><th style="width:60px">Qty</th><th style="width:70px">Rate (m)</th><th style="width:90px">Required (m)</th></tr></thead>
     <tbody>
