@@ -486,10 +486,10 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
         <td class="info-lbl">Shipping / Transport Details</td>
         <td>${dash(po.transportDetails || po.shippingAddress)}</td>
       </tr>
-      <tr>
+      ${isAcc ? '' : `<tr>
         <td class="info-lbl">Special Instructions</td>
         <td>${dash(po.notes)}</td>
-      </tr>
+      </tr>`}
     </tbody>
   </table>
 
