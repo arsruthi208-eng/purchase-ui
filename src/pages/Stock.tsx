@@ -312,10 +312,6 @@ export default function Stock() {
           `You entered ${form.quantity.toLocaleString()} ${shortUnit(formUnit)}. This seems unusually large.`, doSave)
         return
       }
-      if (!form.unitPrice || form.unitPrice <= 0) {
-        showWarning('Zero Unit Price', 'Unit price is ₹0. Stock value will not be recorded correctly. Proceed?', doSave)
-        return
-      }
     }
     doSave()
   }
@@ -514,8 +510,8 @@ export default function Stock() {
                   onChange={e => setForm(p => ({ ...p, quantity: Number(e.target.value) }))} />
               </div>
               <div className="form-group">
-                <label>Unit Price ₹</label>
-                <input type="number" step="0.01" value={form.unitPrice || ''}
+                <label>Unit Price ₹ <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
+                <input type="number" step="0.01" min="0" placeholder="Optional" value={form.unitPrice || ''}
                   onChange={e => setForm(p => ({ ...p, unitPrice: Number(e.target.value) }))} />
               </div>
             </div>
