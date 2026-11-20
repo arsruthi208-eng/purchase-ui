@@ -187,7 +187,7 @@ export default function Dashboard() {
                 value={orderId}
                 onChange={onOrderChange}
                 placeholder={`All school orders (${orders.length})`}
-                options={orders.map(o => ({ value: o.orderId, label: `${o.orderNumber} — ${o.schoolName} (${o.itemCount} styles)` }))}
+                options={orders.map(o => ({ value: o.orderId, label: `${o.orderNumber} — ${o.schoolName} (${o.itemCount} styles)`, sublabel: o.subject }))}
               />
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>

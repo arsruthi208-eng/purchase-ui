@@ -494,7 +494,7 @@ export default function Cutting() {
                 value={schoolOrderId}
                 onChange={onSchoolOrderChange}
                 placeholder="Select school order…"
-                options={confirmedOrders.map(o => ({ value: o.id, label: `${o.orderNumber} — ${o.schoolName}` }))}
+                options={confirmedOrders.map(o => ({ value: o.id, label: `${o.orderNumber} — ${o.schoolName}`, sublabel: o.subject }))}
               />
             </div>
             <div className="form-group">

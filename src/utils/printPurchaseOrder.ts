@@ -84,7 +84,12 @@ function buildSigRow(po: PoDetail): string {
 function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
   const isAcc = po.poKind === 'ACCESSORY'
   const nItems = Math.max(po.items.length, 1)
-  const accRowH = nItems <= 1 ? 118 : nItems === 2 ? 86 : nItems <= 4 ? 64 : 48
+  // Row density: the more lines, the tighter the rows, so terms + signatures always stay on the sheet
+  const accRowH = nItems <= 1 ? 118 : nItems === 2 ? 96 : nItems <= 4 ? 76 : nItems <= 6 ? 52 : nItems <= 8 ? 40 : nItems <= 12 ? 30 : 24
+  const accPadV = nItems <= 6 ? 14 : nItems <= 8 ? 8 : nItems <= 12 ? 4 : 2
+  const accFont = nItems <= 8 ? 13 : nItems <= 12 ? 12 : 11
+  const dense = nItems > 8
+  const veryDense = nItems > 16   // beyond this we let the sheet flow onto a second page
   const totalOrdered = po.items.reduce((s, i) => s + i.orderedQuantity, 0)
 
   const fmtN = (n: number) => n.toLocaleString('en-IN')
@@ -166,18 +171,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
   </table>`
 
   const reqOrders = po.schoolOrders ?? []
-  const reqHtml = isAcc && reqOrders.length > 0
-    ? `<table class="items-tbl req-tbl">
-    <thead><tr><th>School Order</th><th>Style</th><th style="width:70px">Qty (pcs)</th></tr></thead>
-    <tbody>
-      ${reqOrders.map(so => so.styles.map((st, i) => `<tr>
-        <td>${i === 0 ? so.orderNumber + ' — ' + so.schoolName : ''}</td>
-        <td>${st.styleName}${st.standard ? ' (' + st.standard + ')' : ''}</td>
-        <td style="text-align:right">${fmtN(st.quantity)}</td></tr>`).join('')).join('')}
-      <tr class="total-row"><td colspan="2" style="text-align:right">Total</td>
-        <td style="text-align:right">${fmtN(po.totalSchoolQuantity ?? 0)}</td></tr>
-    </tbody></table>`
-    : !isAcc && reqOrders.length > 0
+  const reqHtml = !isAcc && reqOrders.length > 0
     ? `<table class="items-tbl req-tbl">
     <thead><tr><th>School Order</th><th>Style</th><th style="width:60px">Qty</th><th style="width:70px">Rate (m)</th><th style="width:90px">Required (m)</th></tr></thead>
     <tbody>
@@ -352,12 +346,17 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
       overflow-wrap: anywhere;
     }
     .acc-sheet .acc-items th { text-align: center; }
-    .acc-sheet .acc-items .item-row td { height: ${accRowH}px; padding: 14px 8px; font-size: 13px; }
-    .acc-sheet .info-tbl td { padding: 11px 12px; }
+    .acc-sheet .acc-items .item-row td { height: ${accRowH}px; padding: ${accPadV}px 8px; font-size: ${accFont}px; line-height: 1.2; }
+    .acc-sheet .acc-items .sku { margin-top: ${dense ? 1 : 4}px; font-size: ${dense ? 9.5 : 11}px; }
+    .acc-sheet .acc-items th { padding: ${dense ? 5 : 10}px 8px; }
+    .acc-sheet .info-tbl td { padding: ${dense ? 4 : 11}px 12px; ${dense ? 'font-size: 11.5px;' : ''} }
     .acc-sheet .meta-line { padding: 5px 0; }
-    .acc-sheet .sig-space { height: 58px; }
-    .acc-sheet .terms-cols li { margin-bottom: 7px; line-height: 1.55; }
-    .acc-sheet .terms-box { padding: 18px 12px 12px; }
+    .acc-sheet .sig-space { height: ${dense ? 36 : 58}px; }
+    .acc-sheet .sig-img { height: ${dense ? 36 : 52}px; }
+    .acc-sheet .terms-cols li { margin-bottom: ${dense ? 2 : 7}px; line-height: ${dense ? 1.3 : 1.55}; ${dense ? 'font-size: 10.5px;' : ''} }
+    .acc-sheet .terms-box { padding: ${dense ? '14px 12px 6px' : '18px 12px 12px'}; margin-top: ${dense ? 8 : 12}px; }
+    .acc-sheet .meta-line { padding: ${dense ? 2 : 5}px 0; }
+    ${veryDense ? '.sheet { height: auto !important; max-height: none !important; overflow: visible !important; } html, body { overflow: visible !important; }' : ''}
 
     .info-tbl { margin-bottom: 8px; font-size: 12.5px; flex-shrink: 0; }
     .info-tbl td { border: 1px solid #bbb; padding: 7px 10px; font-weight: 600; }
@@ -494,7 +493,7 @@ function buildPoHtml(po: PoDetail, logoDataUrl: string): string {
     </tbody>
   </table>
 
-  <div class="swatch">${isAcc ? 'ACCESSORY SAMPLE / SWATCH — Attach accessory swatch here' : 'FABRIC SAMPLE / SWATCH — Attach fabric swatch here'}</div>
+  ${isAcc ? '' : '<div class="swatch">FABRIC SAMPLE / SWATCH — Attach fabric swatch here</div>'}
 
   <div class="terms-box">
     <div class="terms-tab">Terms &amp; Conditions</div>

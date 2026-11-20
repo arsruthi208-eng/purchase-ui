@@ -14,6 +14,7 @@ export interface SchoolOrderSummary {
   itemCount: number
   totalQuantity: number
   productionStage: string
+  subject?: string
 }
 
 export interface SchoolOrderItemResponse {

@@ -156,7 +156,7 @@ export default function Dispatch() {
                 value={form.schoolOrderId ?? ''}
                 onChange={v => setForm(p => ({ ...p, schoolOrderId: v || undefined }))}
                 placeholder="None"
-                options={confirmedOrders.map(o => ({ value: o.id, label: `${o.orderNumber} — ${o.schoolName}` }))}
+                options={confirmedOrders.map(o => ({ value: o.id, label: `${o.orderNumber} — ${o.schoolName}`, sublabel: o.subject }))}
               />
             </div>
             <div className="form-group">

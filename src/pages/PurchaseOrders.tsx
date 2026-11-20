@@ -204,7 +204,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
         return { key: i.id, styleId: i.styleId, styleName: i.styleName, gender: i.gender, standard: i.standard,
           qty: i.quantity, rate, meters: parseFloat(((rate ?? 0) * i.quantity).toFixed(2)) }
       })
-      return { id, label: sum ? sum.orderNumber : id, school: sum?.schoolName ?? det?.schoolName ?? '',
+      return { id, label: sum ? sum.orderNumber : id, school: sum?.schoolName ?? det?.schoolName ?? '', subject: sum?.subject ?? det?.subject,
         orderDate: sum?.orderDate ?? det?.orderDate ?? '', loaded: !!det, rows,
         qty: rows.reduce((a, r) => a + r.qty, 0), meters: parseFloat(rows.reduce((a, r) => a + r.meters, 0).toFixed(2)) }
     })
@@ -350,7 +350,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                 placeholder={form.schoolOrderIds.length ? '+ Add another school order' : '— Select school order —'}
                 options={schoolOrders
                   .filter(so => !form.schoolOrderIds.includes(so.id))
-                  .map(so => ({ value: so.id, label: `${so.orderNumber} — ${so.schoolName}` }))}
+                  .map(so => ({ value: so.id, label: `${so.orderNumber} — ${so.schoolName}`, sublabel: so.subject }))}
                 style={{ borderColor: form.schoolOrderIds.length === 0 ? '#fca5a5' : undefined }}
               />
               {form.schoolOrderIds.length > 0 && (
@@ -361,6 +361,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                       <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 14, padding: '2px 10px', fontSize: 12 }}>
                         <strong>{so?.orderNumber ?? id}</strong>
                         {so && <span style={{ color: 'var(--text-muted)' }}>{so.schoolName} · {so.totalQuantity} pcs</span>}
+                        {so?.subject && <span style={{ color: 'var(--text-muted)', fontSize: 10 }} title={so.subject}>· {so.subject.length > 40 ? so.subject.slice(0, 40) + '…' : so.subject}</span>}
                         <button type="button" title="Remove" style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 14, lineHeight: 1, padding: 0 }}
                           onClick={() => setForm(p => ({ ...p, schoolOrderIds: p.schoolOrderIds.filter(x => x !== id) }))}>×</button>
                       </span>
@@ -436,13 +437,13 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
             </div>
           </div>
 
-          {requirement.orders.length > 0 && (
+          {!isAccessory && requirement.orders.length > 0 && (
             <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12, marginBottom: 14, background: '#f8fafc' }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>{isAccessory ? 'School Orders Summary' : 'Fabric Requirement by Style'}</div>
               {requirement.orders.map(o => (
                 <div key={o.id} style={{ marginBottom: 10 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-                    {o.label} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>· {o.school}{o.orderDate ? ` · ${o.orderDate}` : ''}</span>
+                    {o.label} <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>· {o.school}{o.orderDate ? ` · ${o.orderDate}` : ''}{o.subject ? <span style={{ fontSize: 11 }}> · {o.subject}</span> : null}</span>
                   </div>
                   {!o.loaded ? <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading…</div> : (
                     <table style={{ width: '100%', fontSize: 12 }}>

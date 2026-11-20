@@ -39,6 +39,7 @@ export default function SchoolOrders() {
   const [statusFilter, setStatusFilter] = useState('')
   const [kindFilter, setKindFilter] = useState('')
   const [schoolIdFilter, setSchoolIdFilter] = useState('')
+  const [yearFilter, setYearFilter] = useState('')
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -183,13 +184,15 @@ export default function SchoolOrders() {
       : ['Style *', 'Gender', 'STD *', 'Total students *', 'No. of students *', 'Qty *', '']
 
   const [sortDesc, setSortDesc] = useState(true)
+  const years = Array.from(new Set(orders.map(o => o.academicYear).filter((y): y is string => !!y))).sort().reverse()
   const filtered = orders.filter(r => {
     if (statusFilter && r.status !== statusFilter) return false
     if (kindFilter && r.orderKind !== kindFilter) return false
     if (schoolIdFilter && r.schoolId !== schoolIdFilter) return false
+    if (yearFilter && r.academicYear !== yearFilter) return false
     if (search) {
       const q = search.toLowerCase()
-      if (!(r.orderNumber.toLowerCase().includes(q) || r.schoolName.toLowerCase().includes(q) || (r.academicYear ?? '').includes(q))) return false
+      if (!(r.orderNumber.toLowerCase().includes(q) || r.schoolName.toLowerCase().includes(q) || (r.subject ?? '').toLowerCase().includes(q) || (r.academicYear ?? '').includes(q))) return false
     }
     return true
   })
@@ -322,9 +325,10 @@ export default function SchoolOrders() {
           filters={[
             { label: 'School', options: schools.map(s => ({ value: s.id, label: s.schoolName })), value: schoolIdFilter, onChange: setSchoolIdFilter, allLabel: 'All schools' },
             { label: 'Type', options: KINDS.map(k => ({ value: k, label: ORDER_KIND_LABEL[k] })), value: kindFilter, onChange: setKindFilter, allLabel: 'All types' },
+            { label: 'Academic Year', options: years.map(y => ({ value: y, label: y })), value: yearFilter, onChange: setYearFilter, allLabel: 'All years' },
             { label: 'Status', options: [{ value: 'DRAFT', label: 'Draft' }, { value: 'CONFIRMED', label: 'Confirmed' }], value: statusFilter, onChange: setStatusFilter, allLabel: 'All statuses' },
           ]}
-          search={{ placeholder: 'Order number, school, year…', value: search, onChange: setSearch }}
+          search={{ placeholder: 'Order number, school, subject, year…', value: search, onChange: setSearch }}
           count={filtered.length} countLabel="orders"
         />
         {loadError ? (
@@ -350,7 +354,14 @@ export default function SchoolOrders() {
               ) : sorted.map(o => (
                 <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/school-orders/${o.id}`)}>
                   <td style={{ fontWeight: 600, color: 'var(--navy)', fontFamily: 'monospace', fontSize: 13 }}>{o.orderNumber}</td>
-                  <td style={{ fontWeight: 500 }}>{o.schoolName}</td>
+                  <td style={{ fontWeight: 500 }}>
+                    {o.schoolName}
+                    {o.subject && (
+                      <div title={o.subject} style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginTop: 2, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {o.subject}
+                      </div>
+                    )}
+                  </td>
                   <td>{ORDER_KIND_LABEL[(o.orderKind as SchoolOrderKind) || 'SCHOOL_STD']}</td>
                   <td>{o.orderDate}</td>
                   <td style={{ textAlign: 'right' }}>{o.itemCount}</td>

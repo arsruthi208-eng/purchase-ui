@@ -176,7 +176,7 @@ export default function Packing() {
                 value={form.schoolOrderId ?? ''}
                 onChange={onSchoolOrderChange}
                 placeholder="None"
-                options={confirmedOrders.map(o => ({ value: o.id, label: `${o.orderNumber} — ${o.schoolName}` }))}
+                options={confirmedOrders.map(o => ({ value: o.id, label: `${o.orderNumber} — ${o.schoolName}`, sublabel: o.subject }))}
               />
             </div>
             <div className="form-group">

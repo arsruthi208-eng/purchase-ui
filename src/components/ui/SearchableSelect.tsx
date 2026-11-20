@@ -4,6 +4,8 @@ import { createPortal } from 'react-dom'
 export interface SelectOption {
   value: string
   label: string
+  /** Optional small secondary line (e.g. subject) */
+  sublabel?: string
 }
 
 interface Props {
@@ -33,7 +35,7 @@ export function SearchableSelect({ value, onChange, options, placeholder = 'Sele
   const selected = options.find(o => o.value === value)
 
   const filtered = query.trim()
-    ? options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()))
+    ? options.filter(o => (o.label + ' ' + (o.sublabel ?? '')).toLowerCase().includes(query.toLowerCase()))
     : options
 
   // Close on outside click — handles both the trigger and the portalled dropdown
@@ -189,7 +191,12 @@ export function SearchableSelect({ value, onChange, options, placeholder = 'Sele
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--off-white, #f3f4f6)')}
                   onMouseLeave={e => (e.currentTarget.style.background = opt.value === value ? 'var(--off-white, #f3f4f6)' : 'transparent')}
                 >
-                  {opt.label}
+                  <div>{opt.label}</div>
+                  {opt.sublabel && (
+                    <div style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={opt.sublabel}>
+                      {opt.sublabel}
+                    </div>
+                  )}
                 </div>
               ))
             )}

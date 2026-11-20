@@ -23,6 +23,7 @@ export interface ProductionReportOrder {
   orderId: string
   orderNumber: string
   schoolName: string
+  subject?: string
   orderDate: string
   orderStatus: string
   productionStage: string

@@ -224,7 +224,7 @@ export default function PurchaseOrderDetail() {
       })()}
 
       {/* ── Fabric requirement by style ── */}
-      {(po.schoolOrders?.length ?? 0) > 0 && (
+      {!isAccessory && (po.schoolOrders?.length ?? 0) > 0 && (
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="card-header">
             <h2>{isAccessory ? 'School Orders Summary' : 'Fabric Requirement by Style'}</h2>
