@@ -166,12 +166,24 @@ export default function Grn() {
   const updateAccQty = (idx: number, val: number) =>
     setLines(prev => prev.map((l, i) => i === idx ? { ...l, receivedQty: val } : l))
 
+  const updateAccPrice = (idx: number, val: number) =>
+    setLines(prev => prev.map((l, i) => i === idx ? { ...l, unitPrice: val } : l))
+
+  const accTotalAmount = useMemo(
+    () => lines.reduce((s, l) => s + (l.kind === 'ACCESSORY' ? l.receivedQty * l.unitPrice : 0), 0), [lines])
+
   const totalReceivedNow = useMemo(
     () => lines.reduce((s, l) => s + (l.kind === 'ACCESSORY' ? l.receivedQty : l.rolls.reduce((sr, r) => sr + r.quantityMeters, 0)), 0), [lines])
   // Bill qty follows the received meters until the user types their own value
   useEffect(() => {
     if (qtyAuto) setBill(b => ({ ...b, qty: totalReceivedNow > 0 ? String(Math.round(totalReceivedNow * 1000) / 1000) : '' }))
   }, [totalReceivedNow, qtyAuto])
+
+  // Accessory bill: price per unit = weighted average of the per-item prices, so Qty x Price = sum of line amounts
+  useEffect(() => {
+    if (!isAccessoryPo || totalReceivedNow <= 0 || accTotalAmount <= 0) return
+    setBill(b => ({ ...b, price: String(Math.round((accTotalAmount / totalReceivedNow) * 10000) / 10000) }))
+  }, [isAccessoryPo, totalReceivedNow, accTotalAmount])
 
   const save = async () => {
     if (!poId || !receivedDate) { setError('PO and received date are required'); return }
@@ -308,19 +320,21 @@ export default function Grn() {
           ) : (
             isAccessoryPo ? (
             <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 110px 110px 150px', background: '#f1f5f9', padding: '8px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 90px 120px 110px 110px', background: '#f1f5f9', padding: '8px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 <div>Accessory</div>
                 <div style={{ textAlign: 'right' }}>Ordered</div>
                 <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Prev. Recd</div>
                 <div style={{ textAlign: 'right' }}>Balance</div>
-                <div style={{ textAlign: 'right' }}>This GRN</div>
+                <div style={{ textAlign: 'right' }}>Qty (This GRN)</div>
+                <div style={{ textAlign: 'right' }}>Price / Unit</div>
+                <div style={{ textAlign: 'right' }}>Amount</div>
               </div>
               {lines.map((line, idx) => {
                 const unit = shortUnit(line.unitOfMeasure)
                 const balance = line.orderedMeters - line.receivedEarlier
                 const diff = line.receivedQty - balance
                 return (
-                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 110px 110px 110px 150px', padding: '10px 16px', alignItems: 'center', borderTop: idx === 0 ? 'none' : '1px solid var(--border)' }}>
+                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 90px 120px 110px 110px', padding: '10px 16px', alignItems: 'center', borderTop: idx === 0 ? 'none' : '1px solid var(--border)' }}>
                     <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--navy)' }}>{line.fabricLabel}</div>
                     <div style={{ textAlign: 'right', fontSize: 13, color: 'var(--text-muted)' }}>{line.orderedMeters.toLocaleString()} {unit}</div>
                     <div style={{ textAlign: 'right', fontSize: 13, color: 'var(--text-muted)' }}>{line.receivedEarlier.toLocaleString()} {unit}</div>
@@ -328,19 +342,31 @@ export default function Grn() {
                     <div style={{ textAlign: 'right' }}>
                       <input type="number" min="0" step="any" placeholder={`Qty (${unit})`}
                         value={line.receivedQty || ''} onChange={e => updateAccQty(idx, Number(e.target.value))}
-                        style={{ width: 110, padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, textAlign: 'right' }} />
+                        style={{ width: 90, padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, textAlign: 'right' }} />
                       {line.receivedQty > 0 && Math.abs(diff) > 0.0001 && (
                         <div style={{ fontSize: 11, marginTop: 1, color: diff > 0 ? '#16a34a' : '#dc2626' }}>
                           {diff > 0 ? `${diff.toLocaleString()} ${unit} over balance` : `${(-diff).toLocaleString()} ${unit} still pending`}
                         </div>
                       )}
                     </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <input type="number" min="0" step="any" placeholder="₹ price"
+                        value={line.unitPrice || ''} onChange={e => updateAccPrice(idx, Number(e.target.value))}
+                        style={{ width: 100, padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, textAlign: 'right' }} />
+                    </div>
+                    <div style={{ textAlign: 'right', fontSize: 13, fontWeight: 600, color: 'var(--navy)' }}>
+                      {(line.receivedQty * line.unitPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
                   </div>
                 )
               })}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 110px 110px 150px', padding: '8px 16px', background: '#f8fafc', borderTop: '2px solid var(--border)', fontSize: 12, fontWeight: 700 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 90px 120px 110px 110px', padding: '8px 16px', background: '#f8fafc', borderTop: '2px solid var(--border)', fontSize: 12, fontWeight: 700 }}>
                 <div style={{ color: 'var(--text-muted)' }}>TOTAL</div><div /><div /><div />
                 <div style={{ textAlign: 'right', color: 'var(--navy)' }}>{totalReceivedNow.toLocaleString()}</div>
+                <div />
+                <div style={{ textAlign: 'right', color: 'var(--navy)' }}>
+                  {accTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
               </div>
             </div>
             ) : (
