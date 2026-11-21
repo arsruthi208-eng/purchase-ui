@@ -36,8 +36,13 @@ export interface GrnBill extends GrnBillRequest {
 
 export interface GrnItem {
   id: string
+  /** Fabric code, or accessory code on accessory GRNs */
   fabricCode: string
   fabricName: string
+  itemCode: string
+  itemName: string
+  unitOfMeasure: string
+  accessoryType?: string
   colourName?: string
   receivedQuantity: number
   toleranceQuantity: number
@@ -63,7 +68,8 @@ export interface GrnDetail {
 
 export interface CreateGrnItemRequest {
   poItemId?: string
-  fabricId: string
+  fabricId?: string
+  accessoryId?: string
   colourId?: string
   /** Leave 0 if using rolls[] — total will be derived server-side */
   receivedQuantity: number

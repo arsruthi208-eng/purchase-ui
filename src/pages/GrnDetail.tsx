@@ -60,13 +60,14 @@ export default function GrnDetail() {
     </div>
   )
 
+  const isAccessory = grn.grnKind === 'ACCESSORY'
   const unitOfCode = (code: string) =>
     fabrics.find(f => f.fabricCode === code)?.unitOfMeasure
     ?? accessories.find(a => a.accessoryCode === code)?.unitOfMeasure
     ?? 'METER'
   const totalReceived = grn.items.reduce((s, i) => s + i.receivedQuantity, 0)
   const totalValue    = grn.items.reduce((s, i) => s + i.receivedQuantity * i.unitPrice, 0)
-  const totalSuffix = sharedUnitSuffix(grn.items.map(i => unitOfCode(i.fabricCode)))
+  const totalSuffix = sharedUnitSuffix(grn.items.map(i => i.unitOfMeasure ?? unitOfCode(i.fabricCode)))
 
   return (
     <div className="page">
@@ -81,7 +82,7 @@ export default function GrnDetail() {
         </div>
         {grn.status !== 'CONFIRMED' && (
           <button className="btn btn-primary" disabled={actionBusy}
-            onClick={() => showConfirm('Confirm GRN', 'Please ensure that the fabric rolls have been received and stored in the stockroom. This cannot be undone.', doConfirmGrn)}>
+            onClick={() => showConfirm('Confirm GRN', isAccessory ? 'Please ensure the accessories have been received and stored in the stockroom. This cannot be undone.' : 'Please ensure that the fabric rolls have been received and stored in the stockroom. This cannot be undone.', doConfirmGrn)}>
             {actionBusy ? 'Confirming…' : 'Confirm GRN'}
           </button>
         )}
@@ -101,6 +102,7 @@ export default function GrnDetail() {
           <InfoRow label="Purchase Party" value={grn.purchasePartyName ?? '—'} />
           <InfoRow label="Vehicle No."   value={grn.vehicleNumber ?? '—'} />
           <InfoRow label="Status"        value={grn.status} />
+          <InfoRow label="Kind"          value={isAccessory ? 'Accessory' : 'Fabric'} />
           {grn.notes && <div style={{ gridColumn: '1 / -1' }}><InfoRow label="Notes" value={grn.notes} /></div>}
         </div>
         <StatsStrip>
@@ -158,7 +160,7 @@ export default function GrnDetail() {
 
         {grn.items.map((item, idx) => {
           const rollTotal = item.rolls?.reduce((s, r) => s + Number(r.quantityMeters), 0) ?? 0
-          const unit = shortUnit(unitOfCode(item.fabricCode))
+          const unit = shortUnit(item.unitOfMeasure ?? unitOfCode(item.fabricCode))
           return (
             <div key={item.id} style={{ borderTop: idx === 0 ? '1px solid var(--border)' : '2px solid var(--border)' }}>
 
@@ -174,8 +176,8 @@ export default function GrnDetail() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                   }}>{idx + 1}</span>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--navy)' }}>{item.fabricCode}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>{item.fabricName}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--navy)' }}>{item.itemCode ?? item.fabricCode}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>{item.itemName ?? item.fabricName}{item.accessoryType ? ` · ${item.accessoryType}` : ''}</div>
                   </div>
                   {item.colourName && (
                     <span style={{
@@ -189,13 +191,17 @@ export default function GrnDetail() {
                     {Number(item.receivedQuantity).toFixed(2)} {unit}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
-                    {item.rolls?.length ?? 0} roll{(item.rolls?.length ?? 0) !== 1 ? 's' : ''}
+                    {isAccessory
+                      ? (Number(item.unitPrice) > 0 ? `@ ₹${Number(item.unitPrice).toFixed(2)}` : 'No price')
+                      : `${item.rolls?.length ?? 0} roll${(item.rolls?.length ?? 0) !== 1 ? 's' : ''}`}
                   </div>
                 </div>
               </div>
 
               {/* ── Rolls table ── */}
-              {item.rolls && item.rolls.length > 0 ? (
+              {isAccessory ? (
+                item.notes ? <div style={{ padding: '10px 20px', fontSize: 13, color: 'var(--text-muted)' }}>{item.notes}</div> : null
+              ) : item.rolls && item.rolls.length > 0 ? (
                 <div style={{ padding: '0 20px 16px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
                     <colgroup>
