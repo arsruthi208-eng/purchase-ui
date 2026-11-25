@@ -6,6 +6,10 @@ export interface FabricRoll {
   quantityMeters: number
   unitPrice: number
   status: 'AVAILABLE' | 'IN_USE' | 'CONSUMED'
+  /** Quantity this roll gave to a confirmed cutting line (absent for older DCs) */
+  consumedQuantity?: number | null
+  /** consumedQuantity was rebuilt for a DC confirmed before per-roll tracking */
+  consumedEstimated?: boolean
 }
 
 /** Row entry the user fills while creating an opening stock or GRN entry */

@@ -479,16 +479,19 @@ export default function CuttingDetail() {
                 ) : (
                   /* View mode: read-only table */
                   rolls.length > 0 ? (
+                    <>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
                       <colgroup>
-                        <col style={{ width: '33.33%' }} />
-                        <col style={{ width: '33.33%' }} />
-                        <col style={{ width: '33.33%' }} />
+                        <col style={{ width: '25%' }} />
+                        <col style={{ width: '25%' }} />
+                        <col style={{ width: '25%' }} />
+                        <col style={{ width: '25%' }} />
                       </colgroup>
                       <thead>
                         <tr style={{ borderBottom: '1px solid var(--border)', background: '#f8fafc' }}>
                           <th style={{ padding: '8px 20px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Roll No</th>
-                          <th style={{ padding: '8px 20px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Qty per roll</th>
+                          <th style={{ padding: '8px 20px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{doc.status === 'CONFIRMED' ? 'Consumed' : 'Qty per roll'}</th>
+                          {doc.status === 'CONFIRMED' && <th style={{ padding: '8px 20px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Remaining</th>}
                           <th style={{ padding: '8px 20px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
                         </tr>
                       </thead>
@@ -497,9 +500,22 @@ export default function CuttingDetail() {
                           <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                             <td style={{ padding: '10px 20px', fontWeight: 600, fontSize: 14, color: 'var(--navy)' }}>{r.rollNumber}</td>
                             <td style={{ padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#111' }}>
-                              {Number(r.quantityMeters).toFixed(2)}
-                              <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>{unit}</span>
+                              {doc.status === 'CONFIRMED'
+                                ? (r.consumedQuantity != null ? Number(r.consumedQuantity).toFixed(2) : '—')
+                                : Number(r.quantityMeters).toFixed(2)}
+                              {(doc.status !== 'CONFIRMED' || r.consumedQuantity != null) && (
+                                <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>{unit}</span>
+                              )}
+                              {doc.status === 'CONFIRMED' && r.consumedEstimated && (
+                                <span style={{ fontSize: 10, fontWeight: 600, color: '#b45309', marginLeft: 6 }}>est.</span>
+                              )}
                             </td>
+                            {doc.status === 'CONFIRMED' && (
+                              <td style={{ padding: '10px 20px', fontSize: 14, color: '#475569' }}>
+                                {Number(r.quantityMeters).toFixed(2)}
+                                <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 4 }}>{unit}</span>
+                              </td>
+                            )}
                             <td style={{ padding: '10px 20px' }}>
                               <span style={{
                                 fontSize: 12, padding: '3px 12px', borderRadius: 20, fontWeight: 800,
@@ -516,13 +532,22 @@ export default function CuttingDetail() {
                         <tr style={{ background: '#f8fafc', borderTop: '2px solid var(--border)' }}>
                           <td style={{ padding: '9px 20px', fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total</td>
                           <td style={{ padding: '9px 20px', fontWeight: 700, fontSize: 14, color: 'var(--navy)' }}>
-                            {displayConsumed.toFixed(2)}
+                            {(doc.status === 'CONFIRMED' && rolls.every(r => r.consumedQuantity != null)
+                              ? rolls.reduce((s, r) => s + Number(r.consumedQuantity), 0)
+                              : displayConsumed).toFixed(2)}
                             <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 4 }}>{unit}</span>
                           </td>
+                          {doc.status === 'CONFIRMED' && <td />}
                           <td />
                         </tr>
                       </tfoot>
                     </table>
+                    {doc.status === 'CONFIRMED' && rolls.some(r => r.consumedEstimated) && (
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '6px 20px 0' }}>
+                        est. = this DC was confirmed before per-roll tracking, so the line total is split evenly across its rolls.
+                      </div>
+                    )}
+                    </>
                   ) : (
                     <div style={{ padding: '10px 0', fontSize: 13, color: 'var(--text-muted)' }}>No rolls recorded.</div>
                   )
