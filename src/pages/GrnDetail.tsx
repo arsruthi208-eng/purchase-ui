@@ -97,7 +97,7 @@ export default function GrnDetail() {
         </div>
         <div style={{ padding: '16px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', rowGap: 14, columnGap: 40 }}>
           <InfoRow label="GRN Number"    value={grn.grnNumber} />
-          <InfoRow label="PO Number"     value={grn.poNumber} />
+          <InfoRow label="PO Number"     value={grn.isSample ? 'SAMPLE (No PO)' : grn.poNumber} />
           <InfoRow label="Received Date" value={grn.receivedDate} />
           <InfoRow label="Purchase Party" value={grn.purchasePartyName ?? '—'} />
           <InfoRow label="Vehicle No."   value={grn.vehicleNumber ?? '—'} />

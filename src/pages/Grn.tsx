@@ -10,7 +10,8 @@ import { purchasePartiesApi, type PurchaseParty } from '../api/purchaseParties'
 import { useApiList } from '../hooks/useApiData'
 import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
-import { fabricsApi } from '../api/fabrics'
+import { fabricsApi, type Fabric } from '../api/fabrics'
+import { accessoriesApi, type Accessory } from '../api/accessories'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 import { shortUnit, unitWord, sharedUnitSuffix } from '../utils/units'
 
@@ -42,6 +43,11 @@ function SectionTitle({ n, title }: { n: number; title: string }) {
 
 const emptyLine = (): LineState => ({ kind: 'FABRIC', receivedQty: 0, fabricId: '', fabricLabel: '', orderedMeters: 0, receivedEarlier: 0, unitPrice: 0, unitOfMeasure: 'METER', rolls: [], startRollNo: 1 })
 
+/** Sentinel value of the PO dropdown meaning "no PO — small purchase / sample" */
+const SAMPLE = '__SAMPLE__'
+
+const emptyAccessoryLine = (): LineState => ({ ...emptyLine(), kind: 'ACCESSORY', accessoryId: '', unitOfMeasure: 'PCS' })
+
 export default function Grn() {
   const navigate = useNavigate()
   const [items, setItems] = useState<GrnSummary[]>([])
@@ -65,6 +71,11 @@ export default function Grn() {
 
   const [showForm, setShowForm] = useState(false)
   const [poId, setPoId] = useState('')
+  /** Sample mode: GRN raised without a PO (small purchases) */
+  const isSample = poId === SAMPLE
+  const [sampleParty, setSampleParty] = useState('')
+  const { data: allFabrics } = useApiList<Fabric>(() => fabricsApi.list())
+  const { data: allAccessories } = useApiList<Accessory>(() => accessoriesApi.list())
   const [receivedDate, setReceivedDate] = useState(today())
   const [vehicleNumber, setVehicleNumber] = useState('')
   const [notes, setNotes] = useState('')
@@ -88,6 +99,7 @@ export default function Grn() {
 
   const openCreate = () => {
     setPoId('')
+    setSampleParty('')
     setPoKind('FABRIC')
     setReceivedDate(today())
     setVehicleNumber('')
@@ -103,7 +115,10 @@ export default function Grn() {
   const onPoChange = async (id: string) => {
     setPoId(id)
     setLines([emptyLine()])
+    setBill(b => ({ ...b, price: '' }))
+    setQtyAuto(true)
     if (!id) return
+    if (id === SAMPLE) { setPoKind('FABRIC'); return }
     setLoadingPo(true)
     try {
       const detail = await purchaseOrdersApi.getById(id)
@@ -169,8 +184,39 @@ export default function Grn() {
   const updateAccPrice = (idx: number, val: number) =>
     setLines(prev => prev.map((l, i) => i === idx ? { ...l, unitPrice: val } : l))
 
+  const changeSampleKind = (k: 'FABRIC' | 'ACCESSORY') => {
+    setPoKind(k)
+    setLines([k === 'ACCESSORY' ? emptyAccessoryLine() : emptyLine()])
+    setBill(b => ({ ...b, price: '' }))
+    setQtyAuto(true)
+  }
+
+  const patchLine = (idx: number, patch: Partial<LineState>) =>
+    setLines(prev => prev.map((l, i) => i === idx ? { ...l, ...patch } : l))
+
+  const addSampleLine = () =>
+    setLines(prev => [...prev, isAccessoryPo ? emptyAccessoryLine() : emptyLine()])
+
+  const removeSampleLine = (idx: number) =>
+    setLines(prev => prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx))
+
+  const pickSampleAccessory = (idx: number, id: string) => {
+    const a = allAccessories.find(x => x.id === id)
+    patchLine(idx, { accessoryId: id, fabricLabel: a ? `${a.accessoryCode} — ${a.accessoryName}` : '', unitOfMeasure: a?.unitOfMeasure ?? 'PCS' })
+  }
+
+  const pickSampleFabric = async (idx: number, id: string) => {
+    const f = allFabrics.find(x => x.id === id)
+    patchLine(idx, { fabricId: id, fabricLabel: f ? `${f.fabricCode} — ${f.fabricName}` : '', unitOfMeasure: f?.unitOfMeasure ?? 'METER' })
+    if (!id) return
+    try { patchLine(idx, { startRollNo: await fabricRollsApi.nextRollNumber(id) }) } catch { /* ignore */ }
+  }
+
+  /** Amount of all lines that carry a rate (accessory lines, and fabric lines in sample mode) */
   const accTotalAmount = useMemo(
-    () => lines.reduce((s, l) => s + (l.kind === 'ACCESSORY' ? l.receivedQty * l.unitPrice : 0), 0), [lines])
+    () => lines.reduce((s, l) => s + (l.kind === 'ACCESSORY'
+      ? l.receivedQty * l.unitPrice
+      : isSample ? l.rolls.reduce((sr, r) => sr + r.quantityMeters, 0) * l.unitPrice : 0), 0), [lines, isSample])
 
   const totalReceivedNow = useMemo(
     () => lines.reduce((s, l) => s + (l.kind === 'ACCESSORY' ? l.receivedQty : l.rolls.reduce((sr, r) => sr + r.quantityMeters, 0)), 0), [lines])
@@ -181,12 +227,13 @@ export default function Grn() {
 
   // Accessory bill: price per unit = weighted average of the per-item prices, so Qty x Price = sum of line amounts
   useEffect(() => {
-    if (!isAccessoryPo || totalReceivedNow <= 0 || accTotalAmount <= 0) return
+    if (!(isAccessoryPo || isSample) || totalReceivedNow <= 0 || accTotalAmount <= 0) return
     setBill(b => ({ ...b, price: String(Math.round((accTotalAmount / totalReceivedNow) * 10000) / 10000) }))
-  }, [isAccessoryPo, totalReceivedNow, accTotalAmount])
+  }, [isAccessoryPo, isSample, totalReceivedNow, accTotalAmount])
 
   const save = async () => {
-    if (!poId || !receivedDate) { setError('PO and received date are required'); return }
+    if (!poId || !receivedDate) { setError('Purchase Order (or Sample) and received date are required'); return }
+    if (isSample && !sampleParty) { setError('Purchase party is required for a sample GRN'); return }
     if (isAccessoryPo) {
       if (lines.some(l => !l.accessoryId)) { setError('Each line needs an accessory'); return }
       if (!lines.some(l => l.receivedQty > 0)) { setError('Enter the received quantity for at least one accessory'); return }
@@ -200,7 +247,7 @@ export default function Grn() {
     if (withBill && !bill.billNo.trim()) { setError('Bill No is required when bill details are entered'); return }
     if (withBill && !bill.billDate) { setError('Bill Date is required'); return }
     const payload: CreateGrnRequest = {
-      poId,
+      ...(isSample ? { purchasePartyId: sampleParty, grnKind: poKind } : { poId }),
       receivedDate,
       vehicleNumber: vehicleNumber || undefined,
       notes: notes || undefined,
@@ -214,6 +261,7 @@ export default function Grn() {
         : lines.map(l => ({
             fabricId: l.fabricId,
             receivedQuantity: 0,   // derived server-side from roll sum
+            ...(isSample ? { unitPrice: l.unitPrice } : {}),
             rolls: l.rolls,
           }) satisfies CreateGrnItemRequest),
     }
@@ -257,7 +305,7 @@ export default function Grn() {
     if (partyFilter && r.purchasePartyId !== partyFilter) return false
     if (search) {
       const q = search.toLowerCase()
-      if (!(r.grnNumber.toLowerCase().includes(q) || r.poNumber.toLowerCase().includes(q) ||
+      if (!(r.grnNumber.toLowerCase().includes(q) || r.poNumber.toLowerCase().includes(q) || (r.isSample && 'sample'.includes(q)) ||
             (r.purchasePartyName ?? '').toLowerCase().includes(q))) return false
     }
     return true
@@ -287,9 +335,9 @@ export default function Grn() {
               <SearchableSelect
                 value={poId}
                 onChange={onPoChange}
-                placeholder="Select open / partially received PO"
+                placeholder="Select open / partially received PO, or Sample (No PO)"
                 disabled={loadingPo}
-                options={openPos.map(po => ({ value: po.id, label: `${po.poNumber} — ${po.purchasePartyName ?? 'No party'}`, sublabel: po.poKind === 'ACCESSORY' ? 'Accessory PO' : 'Fabric PO' }))}
+                options={[{ value: SAMPLE, label: 'Sample (No PO)', sublabel: 'Small purchase — no purchase order needed' }, ...openPos.map(po => ({ value: po.id, label: `${po.poNumber} — ${po.purchasePartyName ?? 'No party'}`, sublabel: po.poKind === 'ACCESSORY' ? 'Accessory PO' : 'Fabric PO' }))]}
               />
               {loadingPo && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Loading PO lines…</div>}
             </div>
@@ -297,6 +345,21 @@ export default function Grn() {
               <label>Received Date *</label>
               <input type="date" value={receivedDate} onChange={e => setReceivedDate(e.target.value)} />
             </div>
+            {isSample && (
+              <>
+                <div className="form-group">
+                  <label>Purchase Party *</label>
+                  <SearchableSelect value={sampleParty} onChange={setSampleParty} placeholder="Select purchase party" options={partyOptions} />
+                </div>
+                <div className="form-group">
+                  <label>Kind *</label>
+                  <select value={poKind} onChange={e => changeSampleKind(e.target.value as 'FABRIC' | 'ACCESSORY')}>
+                    <option value="FABRIC">Fabric</option>
+                    <option value="ACCESSORY">Accessory</option>
+                  </select>
+                </div>
+              </>
+            )}
             <div className="form-group">
               <label>Notes</label>
               <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional remarks" />
@@ -310,7 +373,98 @@ export default function Grn() {
           <SectionTitle n={2} title="Goods Received" />
 
           {/* ── Fabric Lines ── */}
-          {!poId ? (
+          {isSample ? (
+            <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+              {lines.map((line, idx) => {
+                const unit = shortUnit(line.unitOfMeasure)
+                const rollsTotal = line.rolls.reduce((s, r) => s + r.quantityMeters, 0)
+                const qty = isAccessoryPo ? line.receivedQty : rollsTotal
+                const inputStyle = { padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, textAlign: 'right' as const }
+                return (
+                  <div key={idx} style={{ borderTop: idx === 0 ? 'none' : '1px solid var(--border)', padding: '10px 16px', background: '#fff' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isAccessoryPo ? '1fr 120px 120px 110px 32px' : '1fr 120px 110px 32px', gap: 10, alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 3 }}>{isAccessoryPo ? 'Accessory' : 'Fabric'}</div>
+                        {isAccessoryPo ? (
+                          <SearchableSelect value={line.accessoryId ?? ''} onChange={v => pickSampleAccessory(idx, v)} placeholder="Select accessory"
+                            options={allAccessories.map(a => ({ value: a.id, label: `${a.accessoryCode} — ${a.accessoryName}`, sublabel: a.typeName }))} />
+                        ) : (
+                          <SearchableSelect value={line.fabricId} onChange={v => pickSampleFabric(idx, v)} placeholder="Select fabric"
+                            options={allFabrics.map(f => ({ value: f.id, label: `${f.fabricCode} — ${f.fabricName}`, sublabel: f.fabricType }))} />
+                        )}
+                      </div>
+                      {isAccessoryPo && (
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 3 }}>Qty ({unit})</div>
+                          <input type="number" min="0" step="any" placeholder="Qty" value={line.receivedQty || ''}
+                            onChange={e => updateAccQty(idx, Number(e.target.value))} style={{ ...inputStyle, width: 100 }} />
+                        </div>
+                      )}
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 3 }}>Rate / {unit}</div>
+                        <input type="number" min="0" step="any" placeholder="₹ rate" value={line.unitPrice || ''}
+                          onChange={e => updateAccPrice(idx, Number(e.target.value))} style={{ ...inputStyle, width: 100 }} />
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 3 }}>Amount</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)', padding: '5px 0' }}>
+                          {(qty * line.unitPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                      <button type="button" title="Remove item" disabled={lines.length <= 1} onClick={() => removeSampleLine(idx)}
+                        style={{ background: 'none', border: 'none', cursor: lines.length <= 1 ? 'default' : 'pointer', color: lines.length <= 1 ? '#d1d5db' : '#dc2626', padding: 4, marginTop: 16 }}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    {!isAccessoryPo && (
+                      <div style={{ padding: '8px 0 0' }}>
+                        {line.rolls.length > 0 && (
+                          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', marginBottom: 8 }}>
+                            <tbody>
+                              {line.rolls.map((r, ri) => (
+                                <tr key={ri}>
+                                  <td style={{ padding: '3px 8px', width: 80 }}>
+                                    <span style={{ display: 'inline-block', minWidth: 36, padding: '2px 8px', background: 'var(--navy)', color: '#fff', borderRadius: 10, fontFamily: 'monospace', fontWeight: 700, fontSize: 12, textAlign: 'center' }}>
+                                      {line.startRollNo + ri}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '3px 8px' }}>
+                                    <input type="number" step="0.01" min="0.01" placeholder="e.g. 40.80" value={r.quantityMeters || ''}
+                                      onChange={e => updateRollMeters(idx, ri, Number(e.target.value))}
+                                      style={{ width: 140, padding: '5px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13 }} />
+                                    <span style={{ marginLeft: 6, fontSize: 12, color: 'var(--text-muted)' }}>{unit}</span>
+                                  </td>
+                                  <td style={{ width: 32 }}>
+                                    <button type="button" onClick={() => removeRoll(idx, ri)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', padding: 4 }}>
+                                      <Trash2 size={13} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                        <button type="button" onClick={() => addRoll(idx)}
+                          style={{ fontSize: 12, padding: '4px 12px', cursor: 'pointer', background: '#fff', border: '1px dashed var(--navy)', color: 'var(--navy)', borderRadius: 6, fontWeight: 600 }}>
+                          + Add Roll
+                        </button>
+                        {rollsTotal > 0 && <span style={{ marginLeft: 12, fontSize: 12, color: 'var(--text-muted)' }}>Total {rollsTotal.toFixed(2)} {unit}</span>}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+              <div style={{ padding: '8px 16px', background: '#f8fafc', borderTop: '2px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button type="button" onClick={addSampleLine}
+                  style={{ fontSize: 12, padding: '4px 12px', cursor: 'pointer', background: '#fff', border: '1px dashed var(--navy)', color: 'var(--navy)', borderRadius: 6, fontWeight: 600 }}>
+                  + Add Item
+                </button>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--navy)' }}>
+                  TOTAL Qty {totalReceivedNow.toLocaleString()} · Amount {accTotalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+            </div>
+          ) : !poId ? (
             <div style={{
               fontSize: 13, color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center',
               border: '1px dashed var(--border)', borderRadius: 8,
@@ -563,7 +717,7 @@ export default function Grn() {
                   <td>{g.purchasePartyName ?? '—'}</td>
                   <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{g.grnNumber}</td>
                   <td style={{ fontSize: 12 }}>{g.grnKind === 'ACCESSORY' ? 'Accessory' : 'Fabric'}</td>
-                  <td>{g.poNumber}</td>
+                  <td>{g.isSample ? <span className="badge badge-draft" title="Raised without a PO">Sample</span> : g.poNumber}</td>
                   <td>{g.receivedDate}</td>
                   <td><span className={`badge ${statusBadge(g.status)}`}>{g.status}</span></td>
                   <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>

@@ -13,6 +13,8 @@ export interface GrnSummary {
   itemCount: number
   billNo?: string
   billTotal?: number
+  /** True for GRNs raised without a PO (small purchases) */
+  isSample?: boolean
 }
 
 /** Supplier invoice received with a GRN. amount/taxable/total are recomputed server-side. */
@@ -64,6 +66,7 @@ export interface GrnDetail {
   status: string
   items: GrnItem[]
   bill?: GrnBill
+  isSample?: boolean
 }
 
 export interface CreateGrnItemRequest {
@@ -81,7 +84,10 @@ export interface CreateGrnItemRequest {
 }
 
 export interface CreateGrnRequest {
-  poId: string
+  /** Omit for a sample / small-purchase GRN; then purchasePartyId and grnKind are required */
+  poId?: string
+  purchasePartyId?: string
+  grnKind?: 'FABRIC' | 'ACCESSORY'
   receivedDate: string
   vehicleNumber?: string
   notes?: string
