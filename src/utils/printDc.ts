@@ -183,6 +183,70 @@ async function buildCuttingDcHtml(doc: CuttingOrder): Promise<string> {
   const totalQty    = doc.items.reduce((s, i) => s + i.quantity, 0)
   const totalFabric = doc.items.reduce((s, i) => s + i.fabricConsumed, 0)
 
+  // ── Roll issue plan (what stock must hand over) ──────────────────────────
+  // DRAFT: roll.quantityMeters = current length; allocation simulates the confirm logic
+  //        (highest roll number first, running balance shared across lines).
+  // CONFIRMED: roll.consumedQuantity = metres taken by this line; quantityMeters = balance now.
+  const confirmed = doc.status === 'CONFIRMED'
+  type RollRow = { fabric: string; unit: string; rollNo: number; lines: number[]; length: number; issue: number; balance: number; est: boolean }
+  const rollMap = new Map<string, RollRow>()
+  const running: Record<string, number> = {}
+  doc.items.forEach((it, idx) => {
+    const unit = shortUnit(unitOf(it.fabricId))
+    if (confirmed) {
+      it.rolls.forEach(r => {
+        const used = Number(r.consumedQuantity ?? 0)
+        const row = rollMap.get(r.id) ?? { fabric: it.fabricName, unit, rollNo: r.rollNumber, lines: [], length: 0, issue: 0, balance: Number(r.quantityMeters), est: false }
+        if (used > 0) { row.issue += used; row.lines.push(idx + 1) }
+        row.est = row.est || !!r.consumedEstimated
+        rollMap.set(r.id, row)
+      })
+      return
+    }
+    let need = Number(it.fabricConsumed)
+    ;[...it.rolls].sort((a, b) => b.rollNumber - a.rollNumber).forEach(r => {
+      if (running[r.id] === undefined) running[r.id] = Number(r.quantityMeters)
+      const row = rollMap.get(r.id) ?? { fabric: it.fabricName, unit, rollNo: r.rollNumber, lines: [], length: Number(r.quantityMeters), issue: 0, balance: 0, est: false }
+      const take = Math.max(0, Math.min(need, running[r.id]))
+      if (take > 0) { row.issue += take; row.lines.push(idx + 1); running[r.id] -= take; need -= take }
+      row.balance = running[r.id]
+      rollMap.set(r.id, row)
+    })
+  })
+  const rollRows = [...rollMap.values()].sort((a, b) => a.fabric.localeCompare(b.fabric) || a.rollNo - b.rollNo)
+  const totalIssue   = rollRows.reduce((s, r) => s + r.issue, 0)
+  const totalBalance = rollRows.reduce((s, r) => s + r.balance, 0)
+  const rollUnit     = rollRows.length ? rollRows[0].unit : ''
+  const rollHtml = rollRows.length === 0 ? '' : `
+    <div class="section-title" style="margin-top:18px">Roll Issue Details${confirmed ? '' : ' (to be issued by stock)'}</div>
+    <table>
+      <thead><tr>
+        <th class="ctr" style="width:32px">#</th>
+        <th>Fabric</th><th class="ctr">Roll No</th>
+        ${confirmed ? '' : '<th class="num">Roll length</th>'}
+        <th class="num">${confirmed ? 'Issued / cut' : 'Issue (cut)'}</th>
+        <th class="num">${confirmed ? 'Balance now' : 'Balance after cut'}</th>
+        <th class="ctr">Used in line(s)</th>
+      </tr></thead>
+      <tbody>
+        ${rollRows.map((r, i) => `<tr>
+          <td class="ctr">${i + 1}</td>
+          <td>${esc(r.fabric)}</td>
+          <td class="ctr" style="font-weight:700">#${r.rollNo}</td>
+          ${confirmed ? '' : `<td class="num">${r.length.toFixed(2)} ${r.unit}</td>`}
+          <td class="num" style="font-weight:700">${r.issue.toFixed(2)} ${r.unit}${r.est ? ' (est.)' : ''}</td>
+          <td class="num">${r.balance.toFixed(2)} ${r.unit}${r.balance <= 0.001 ? ' — finished' : ''}</td>
+          <td class="ctr">${r.lines.join(', ') || '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot><tr>
+        <td colspan="${confirmed ? 3 : 4}" class="num">TOTAL — ${rollRows.length} roll${rollRows.length !== 1 ? 's' : ''}</td>
+        <td class="num">${totalIssue.toFixed(2)} ${rollUnit}</td>
+        <td class="num">${totalBalance.toFixed(2)} ${rollUnit}</td>
+        <td></td>
+      </tr></tfoot>
+    </table>`
+
   const bodyHtml = `
     <div class="section-title">Cutting Lines</div>
     <table>
@@ -209,7 +273,7 @@ async function buildCuttingDcHtml(doc: CuttingOrder): Promise<string> {
         <td class="num">${totalQty.toLocaleString('en-IN')} pcs</td>
         <td class="num">${totalFabric.toFixed(2)}${fabricSuffix}</td>
       </tr></tfoot>
-    </table>`
+    </table>${rollHtml}`
 
   const title = `${doc.cuttingNumber} DC`
   return buildHtml({
