@@ -9,11 +9,13 @@ import { accessoriesApi, type Accessory } from '../api/accessories'
 import { schoolOrdersApi, type SchoolOrderSummary } from '../api/schoolOrders'
 import { stockApi } from '../api/stock'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, AlertDialog, type StockShortfall, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
+import { PresetOrCustomSelect, Modal, FormError, FormActions, AlertDialog, type StockShortfall, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { shortUnit } from '../utils/units'
 
 type Line = CreateAccessoryDcRequest['items'][0]
+
+const UOM_PRESETS = ['PCS', 'SETS', 'METER', 'KG', 'CONE', 'DOZEN', 'PAIR', 'ROLL', 'BOX', 'PACKET', 'GROSS', 'YARD']
 
 const emptyLine = (): Line => ({ accessoryId: '', quantity: 0, unitOfMeasure: 'PCS' })
 
@@ -236,13 +238,9 @@ export default function AccessoryDcPage() {
             ))}
           </div>
 
-          <datalist id="accessory-dc-uom-options">
-            {['PCS', 'SETS', 'METER', 'KG', 'CONE', 'DOZEN', 'PAIR', 'ROLL', 'BOX', 'PACKET', 'GROSS', 'YARD'].map(u => <option key={u} value={u} />)}
-          </datalist>
-
           <div style={{ maxHeight: 280, overflowY: 'auto', paddingRight: 4 }}>
             {form.items.map((line, idx) => (
-              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+              <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, marginBottom: 6, alignItems: 'start' }}>
                 <SearchableSelect
                   value={line.accessoryId}
                   onChange={v => updateLine(idx, { accessoryId: v })}
@@ -255,14 +253,15 @@ export default function AccessoryDcPage() {
                   value={line.quantity || ''}
                   onChange={e => updateLine(idx, { quantity: Number(e.target.value) })}
                 />
-                <input
-                  type="text"
-                  list="accessory-dc-uom-options"
-                  maxLength={20}
-                  placeholder="e.g. PCS, MTR, DOZEN"
+                <PresetOrCustomSelect
                   value={line.unitOfMeasure ?? ''}
-                  onChange={e => updateLine(idx, { unitOfMeasure: e.target.value.toUpperCase() })}
-                  onBlur={e => { if (!e.target.value.trim()) updateLine(idx, { unitOfMeasure: 'PCS' }) }}
+                  onChange={v => updateLine(idx, { unitOfMeasure: v })}
+                  presets={UOM_PRESETS}
+                  placeholder="Unit"
+                  customLabel="Enter custom unit…"
+                  customPlaceholder="e.g. MTR, DOZEN"
+                  maxLength={20}
+                  transform={v => v.toUpperCase()}
                 />
                 <button
                   className="btn-icon"

@@ -10,7 +10,7 @@ import { coloursApi, type Colour } from '../api/colours'
 import { schoolOrdersApi, type SchoolOrderSummary, type SchoolOrderDetail } from '../api/schoolOrders'
 import { stylesApi, type Style } from '../api/styles'
 import { useApiList } from '../hooks/useApiData'
-import { Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
+import { PresetOrCustomSelect, Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 import { shortUnit } from '../utils/units'
@@ -30,8 +30,6 @@ const PRESET_TRANSPORTS = [
   'Palani Andavar Lorry Service @ Sathyamangalam',
   'Uttam Roadways @ Coimbatore',
 ]
-
-const CUSTOM_SENTINEL = '__custom__'
 
 type Line = CreatePoRequest['items'][0]
 type PoKind = 'FABRIC' | 'ACCESSORY'
@@ -380,52 +378,27 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
             </div>
             <div className="form-group">
               <label>Shipping Address</label>
-              <SearchableSelect
-                value={PRESET_ADDRESSES.includes(form.shippingAddress ?? '') ? (form.shippingAddress ?? '') : CUSTOM_SENTINEL}
-                onChange={v => {
-                  if (v === CUSTOM_SENTINEL) {
-                    setForm(p => ({ ...p, shippingAddress: '' }))
-                  } else {
-                    setForm(p => ({ ...p, shippingAddress: v }))
-                  }
-                }}
+              <PresetOrCustomSelect
+                value={form.shippingAddress ?? ''}
+                onChange={v => setForm(p => ({ ...p, shippingAddress: v }))}
+                presets={PRESET_ADDRESSES}
                 placeholder="Select address"
-                options={[...PRESET_ADDRESSES.map(a => ({ value: a, label: a })), { value: CUSTOM_SENTINEL, label: '✏️ Enter custom address…' }]}
-                style={{ marginBottom: 6 }}
+                customLabel="Enter custom address…"
+                customPlaceholder="Type full shipping address…"
+                multiline
               />
-              {/* Show textarea only for custom, or always for editing preset */}
-              {(!PRESET_ADDRESSES.includes(form.shippingAddress ?? '') || form.shippingAddress === '') && (
-                <textarea
-                  rows={2}
-                  placeholder="Type full shipping address…"
-                  value={form.shippingAddress ?? ''}
-                  onChange={e => setForm(p => ({ ...p, shippingAddress: e.target.value }))}
-                />
-              )}
             </div>
             <div className="form-group">
               <label>Transport</label>
-              <SearchableSelect
-                value={PRESET_TRANSPORTS.includes(form.transportDetails ?? '') ? (form.transportDetails ?? '') : CUSTOM_SENTINEL}
-                onChange={v => {
-                  if (v === CUSTOM_SENTINEL) {
-                    setForm(p => ({ ...p, transportDetails: '' }))
-                  } else {
-                    setForm(p => ({ ...p, transportDetails: v }))
-                  }
-                }}
+              <PresetOrCustomSelect
+                value={form.transportDetails ?? ''}
+                onChange={v => setForm(p => ({ ...p, transportDetails: v }))}
+                presets={PRESET_TRANSPORTS}
                 placeholder="Select transport"
-                options={[...PRESET_TRANSPORTS.map(t => ({ value: t, label: t })), { value: CUSTOM_SENTINEL, label: '✏️ Enter custom transport…' }]}
-                style={{ marginBottom: 6 }}
+                customLabel="Enter custom transport…"
+                customPlaceholder="e.g. DTDC @ Salem, Own vehicle…"
+                multiline
               />
-              {(!PRESET_TRANSPORTS.includes(form.transportDetails ?? '') || form.transportDetails === '') && (
-                <textarea
-                  rows={1}
-                  placeholder="e.g. DTDC @ Salem, Own vehicle…"
-                  value={form.transportDetails ?? ''}
-                  onChange={e => setForm(p => ({ ...p, transportDetails: e.target.value }))}
-                />
-              )}
             </div>
             <div className="form-group" style={{ gridColumn: '1 / -1' }}>
               <label>Notes</label>
