@@ -19,15 +19,18 @@ interface Props {
 }
 
 interface DropdownPos {
-  top: number
+  /** Exactly one of top / bottom is set, depending on whether the list opens down or up */
+  top?: number
+  bottom?: number
   left: number
   width: number
+  maxHeight: number
 }
 
 export function SearchableSelect({ value, onChange, options, placeholder = 'Select…', disabled, style, className }: Props) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [dropdownPos, setDropdownPos] = useState<DropdownPos>({ top: 0, left: 0, width: 0 })
+  const [dropdownPos, setDropdownPos] = useState<DropdownPos>({ top: 0, left: 0, width: 0, maxHeight: 340 })
   const containerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -60,12 +63,18 @@ export function SearchableSelect({ value, onChange, options, placeholder = 'Sele
     // dropdown escapes any overflow:auto ancestor completely.
     const rect = containerRef.current?.getBoundingClientRect()
     if (rect) {
-      const maxDropdownH = 344
-      const spaceBelow = window.innerHeight - rect.bottom
-      const top = spaceBelow >= 200
-        ? rect.bottom + 4        // open downward (normal case)
-        : rect.top - maxDropdownH  // flip upward when near bottom of screen
-      setDropdownPos({ top, left: rect.left, width: rect.width })
+      const margin = 8
+      const spaceBelow = window.innerHeight - rect.bottom - margin
+      const spaceAbove = rect.top - margin
+      // Open on whichever side has more room, and shrink the list to fit it (it scrolls inside)
+      const openDown = spaceBelow >= 260 || spaceBelow >= spaceAbove
+      const maxHeight = Math.max(140, Math.min(340, openDown ? spaceBelow : spaceAbove))
+      // Narrow triggers (e.g. a Unit column) still get a readable list, kept inside the viewport
+      const width = Math.max(rect.width, 220)
+      const left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin))
+      setDropdownPos(openDown
+        ? { top: rect.bottom + 4, left, width, maxHeight }
+        : { bottom: window.innerHeight - rect.top + 4, left, width, maxHeight })
     }
     setOpen(true)
     setQuery('')
@@ -143,6 +152,7 @@ export function SearchableSelect({ value, onChange, options, placeholder = 'Sele
           style={{
             position: 'fixed',
             top: dropdownPos.top,
+            bottom: dropdownPos.bottom,
             left: dropdownPos.left,
             width: dropdownPos.width,
             zIndex: 9999,
@@ -150,7 +160,7 @@ export function SearchableSelect({ value, onChange, options, placeholder = 'Sele
             border: '1.5px solid var(--border)',
             borderRadius: 'var(--radius)',
             boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-            maxHeight: 340,
+            maxHeight: dropdownPos.maxHeight,
             display: 'flex',
             flexDirection: 'column',
           }}
