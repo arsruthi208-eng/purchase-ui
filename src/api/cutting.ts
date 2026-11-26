@@ -25,6 +25,8 @@ export interface CuttingOrder {
   schoolName: string
   schoolOrderId?: string
   schoolOrderNumber?: string
+  orderListLabel?: string
+  orderSubject?: string
   cuttingDate: string
   status: string
   sentToPersonName?: string

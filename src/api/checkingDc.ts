@@ -7,6 +7,8 @@ export interface CheckingDc {
   schoolName?: string
   schoolOrderId?: string
   schoolOrderNumber?: string
+  orderListLabel?: string
+  orderSubject?: string
   checkDate: string
   status: string
   sentToPersonName?: string

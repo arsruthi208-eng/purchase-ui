@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { dcSubline } from '../utils/dcSubline'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
 import { SearchableSelect } from '../components/ui/SearchableSelect'
@@ -697,7 +698,7 @@ export default function Cutting() {
                 <tr><td colSpan={6}><div className="empty-state">No cutting orders yet</div></td></tr>
               ) : sorted.map(o => (
                 <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/cutting/${o.id}`)}>
-                  <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{o.cuttingNumber}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{o.cuttingNumber}{dcSubline(o) && <div style={{ fontWeight: 400, fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{dcSubline(o)}</div>}</td>
                   <td>{o.schoolName}</td>
                   <td>{o.cuttingDate}</td>
                   <td style={{ color: o.sentToPersonName ? undefined : 'var(--text-muted)', fontSize: 13 }}>{o.sentToPersonName ?? '—'}</td>

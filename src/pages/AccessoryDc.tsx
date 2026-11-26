@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { dcSubline } from '../utils/dcSubline'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
 import { SearchableSelect } from '../components/ui/SearchableSelect'
@@ -311,7 +312,7 @@ export default function AccessoryDcPage() {
                 <tr><td colSpan={8}><div className="empty-state">No accessory DCs yet</div></td></tr>
               ) : sorted.map(d => (
                 <tr key={d.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/accessory-dc/${d.id}`)}>
-                  <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{d.dcNumber}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{d.dcNumber}{dcSubline({ orderListLabel: d.orderListLabel, orderSubject: d.orderSubject }) && <div style={{ fontWeight: 400, fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{dcSubline({ orderListLabel: d.orderListLabel, orderSubject: d.orderSubject })}</div>}</td>
                   <td>{d.stitchingUnitName}</td>
                   <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{d.schoolOrderNumber ?? '—'}</td>
                   <td>{d.deliveryDate}</td>

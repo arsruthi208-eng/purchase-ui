@@ -9,6 +9,8 @@ export interface StitchingDc {
   schoolName?: string
   schoolOrderId?: string
   schoolOrderNumber?: string
+  orderListLabel?: string
+  orderSubject?: string
   deliveryDate: string
   status: string
   sentToPersonName?: string

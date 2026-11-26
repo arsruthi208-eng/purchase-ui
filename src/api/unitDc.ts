@@ -4,6 +4,8 @@ export interface UnitDc {
   id: string
   dcNumber: string
   cuttingNumber: string
+  orderListLabel?: string
+  orderSubject?: string
   stitchingUnitName: string
   deliveryDate: string
   status: string
@@ -17,6 +19,8 @@ export interface AccessoryDc {
   stitchingUnitName: string
   schoolOrderId?: string
   schoolOrderNumber?: string
+  orderListLabel?: string
+  orderSubject?: string
   deliveryDate: string
   status: string
   sentToPersonName?: string

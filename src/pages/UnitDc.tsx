@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { dcSubline } from '../utils/dcSubline'
 import { summarizeItems } from '../utils/orderSummary'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
@@ -312,7 +313,7 @@ export default function UnitDc() {
                 <tr><td colSpan={6}><div className="empty-state">No unit DCs yet</div></td></tr>
               ) : sorted.map(d => (
                 <tr key={d.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/unit-dc/${d.id}`)}>
-                  <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{d.dcNumber}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{d.dcNumber}{dcSubline(d) && <div style={{ fontWeight: 400, fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{dcSubline(d)}</div>}</td>
                   <td>{d.cuttingNumber}</td>
                   <td>{d.stitchingUnitName}</td>
                   <td>{d.deliveryDate}</td>

@@ -219,6 +219,7 @@ export default function SchoolOrderDetail() {
           {/* order info grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 20 }}>
             <LabelValue label="School" value={order.schoolName} />
+            <LabelValue label="Order List" value={order.orderListLabel || '—'} />
             {order.subject && <LabelValue label="Subject" value={order.subject} />}
             <LabelValue label="Academic Year" value={order.academicYear ?? '—'} />
             <LabelValue label="Order Date"    value={order.orderDate} />

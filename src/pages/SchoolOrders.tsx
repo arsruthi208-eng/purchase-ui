@@ -112,6 +112,7 @@ export default function SchoolOrders() {
   const save = async () => {
     if (!form.schoolId) { setError('School is required'); return }
     if (!form.orderDate) { setError('Order date is required'); return }
+    if (!form.orderListLabel?.trim()) { setError('Order list is required'); return }
     if (form.items.length === 0) { setError('Add at least one line item'); return }
     if (form.items.some(l => !l.styleId)) { setError('Each line needs a style'); return }
     if (kind === 'SCHOOL_SIZE' && form.items.some(l => !l.size || !l.quantity)) {
@@ -244,8 +245,8 @@ export default function SchoolOrders() {
               <input type="date" value={form.orderDate} onChange={e => setForm(p => ({ ...p, orderDate: e.target.value }))} />
             </div>
             <div className="form-group">
-              <label>Order list (optional)</label>
-              <input placeholder="LIST-1" value={form.orderListLabel ?? ''} onChange={e => setForm(p => ({ ...p, orderListLabel: e.target.value }))} />
+              <label>Order list *</label>
+              <input required placeholder="LIST-1" value={form.orderListLabel ?? ''} onChange={e => setForm(p => ({ ...p, orderListLabel: e.target.value }))} />
             </div>
             <div className="form-group" style={{ gridColumn: '1 / -1' }}>
               <label>Subject</label>
