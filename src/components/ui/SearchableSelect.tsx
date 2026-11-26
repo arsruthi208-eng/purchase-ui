@@ -193,7 +193,7 @@ export function SearchableSelect({ value, onChange, options, placeholder = 'Sele
                 >
                   <div>{opt.label}</div>
                   {opt.sublabel && (
-                    <div style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={opt.sublabel}>
+                    <div style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginTop: 2, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', whiteSpace: 'normal' }} title={opt.sublabel}>
                       {opt.sublabel}
                     </div>
                   )}
@@ -203,6 +203,12 @@ export function SearchableSelect({ value, onChange, options, placeholder = 'Sele
           </div>
         </div>,
         document.body
+      )}
+      {/* Keep the chosen option's info visible below the field */}
+      {selected?.sublabel && !open && (
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.35 }}>
+          {selected.sublabel}
+        </div>
       )}
     </div>
   )

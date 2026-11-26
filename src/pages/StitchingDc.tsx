@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { summarizeItems } from '../utils/orderSummary'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
 import { SearchableSelect } from '../components/ui/SearchableSelect'
@@ -157,7 +158,7 @@ export default function KajaButtonDc() {
                 value={cuttingOrderId}
                 onChange={onCuttingChange}
                 placeholder="Select cutting order"
-                options={confirmedCuttings.map(c => ({ value: c.id, label: `${c.cuttingNumber} — ${c.schoolName}` }))}
+                options={confirmedCuttings.map(c => ({ value: c.id, label: `${c.cuttingNumber} — ${c.schoolName}`, sublabel: [c.schoolOrderNumber, summarizeItems(c.items)].filter(Boolean).join(' · ') }))}
               />
             </div>
             <div className="form-group">

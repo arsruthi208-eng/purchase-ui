@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { summarizeItems } from '../utils/orderSummary'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2 } from '../icons'
 import { SearchableSelect } from '../components/ui/SearchableSelect'
@@ -183,7 +184,7 @@ export default function UnitDc() {
               value={form.cuttingOrderId}
               onChange={onCuttingChange}
               placeholder="Select cutting order"
-              options={cuttings.filter(c => c.status === 'CONFIRMED').map(c => ({ value: c.id, label: `${c.cuttingNumber} — ${c.schoolName}` }))}
+              options={cuttings.filter(c => c.status === 'CONFIRMED').map(c => ({ value: c.id, label: `${c.cuttingNumber} — ${c.schoolName}`, sublabel: [c.schoolOrderNumber, summarizeItems(c.items)].filter(Boolean).join(' · ') }))}
             />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
