@@ -126,7 +126,9 @@ export default function AccessoryDcPage() {
     try {
       const payload: CreateAccessoryDcRequest = {
         ...form,
-        items: form.items.filter(l => l.accessoryId && l.quantity > 0),
+        items: form.items
+          .filter(l => l.accessoryId && l.quantity > 0)
+          .map(l => ({ ...l, unitOfMeasure: l.unitOfMeasure?.trim() || 'PCS' })),
       }
       await accessoryDcApi.create(payload)
       setShowForm(false); load()
@@ -234,6 +236,10 @@ export default function AccessoryDcPage() {
             ))}
           </div>
 
+          <datalist id="accessory-dc-uom-options">
+            {['PCS', 'SETS', 'METER', 'KG', 'CONE', 'DOZEN', 'PAIR', 'ROLL', 'BOX', 'PACKET', 'GROSS', 'YARD'].map(u => <option key={u} value={u} />)}
+          </datalist>
+
           <div style={{ maxHeight: 280, overflowY: 'auto', paddingRight: 4 }}>
             {form.items.map((line, idx) => (
               <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, marginBottom: 6, alignItems: 'center' }}>
@@ -249,14 +255,15 @@ export default function AccessoryDcPage() {
                   value={line.quantity || ''}
                   onChange={e => updateLine(idx, { quantity: Number(e.target.value) })}
                 />
-                <select
-                  value={line.unitOfMeasure ?? 'PCS'}
-                  onChange={e => updateLine(idx, { unitOfMeasure: e.target.value })}
-                >
-                  {['PCS', 'SETS', 'METER', 'KG', 'CONE'].map(u => (
-                    <option key={u} value={u}>{u}</option>
-                  ))}
-                </select>
+                <input
+                  type="text"
+                  list="accessory-dc-uom-options"
+                  maxLength={20}
+                  placeholder="e.g. PCS, MTR, DOZEN"
+                  value={line.unitOfMeasure ?? ''}
+                  onChange={e => updateLine(idx, { unitOfMeasure: e.target.value.toUpperCase() })}
+                  onBlur={e => { if (!e.target.value.trim()) updateLine(idx, { unitOfMeasure: 'PCS' }) }}
+                />
                 <button
                   className="btn-icon"
                   style={{ color: '#dc2626' }}
