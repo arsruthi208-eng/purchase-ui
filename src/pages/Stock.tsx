@@ -5,10 +5,10 @@ import { stockApi, type StockEntry, type StockBalanceSummary, type CreateStockEn
 import { type RollEntry, fabricRollsApi } from '../api/fabricRolls'
 import { fabricsApi, type Fabric } from '../api/fabrics'
 import { accessoriesApi, type Accessory } from '../api/accessories'
-import { Modal, FormError, FormActions, SummaryCard, statusBadge, today, SortableTh, StockAlertBanner } from '../components/ui'
+import { Modal, FormError, FormActions, SummaryCard, statusBadge, today, SortableTh, StockAlertBanner, PresetOrCustomSelect } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
-import { shortUnit, unitWord } from '../utils/units'
+import { shortUnit, unitWord, UOM_PRESETS } from '../utils/units'
 import { useAuth } from '../context/AuthContext'
 
 const ITEM_TYPES = ['FABRIC', 'ACCESSORY'] as const
@@ -177,7 +177,7 @@ export default function Stock() {
   const [accessories, setAccessories] = useState<Accessory[]>([])
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<Omit<CreateStockEntryRequest, 'rolls'>>({
-    itemType: 'FABRIC', referenceId: '', quantity: 0, unitPrice: 0, stockDate: today(), notes: '',
+    itemType: 'FABRIC', referenceId: '', quantity: 0, unitPrice: 0, unitOfMeasure: 'PCS', stockDate: today(), notes: '',
   })
   const [rolls, setRolls] = useState<RollEntry[]>([])
   const [fabricUnitPrice, setFabricUnitPrice] = useState(0)
@@ -192,7 +192,10 @@ export default function Stock() {
     isFabric
       ? fabrics.find(f => f.id === referenceId)?.unitOfMeasure ?? 'METER'
       : accessories.find(a => a.id === referenceId)?.unitOfMeasure ?? 'PCS'
-  const formUnit = form.referenceId ? unitOf(form.referenceId) : (isFabric ? 'METER' : 'PCS')
+  /** Fabric: always from master. Accessory: prefer form override (PresetOrCustomSelect). */
+  const formUnit = isFabric
+    ? (form.referenceId ? unitOf(form.referenceId) : 'METER')
+    : (form.unitOfMeasure?.trim() || (form.referenceId ? unitOf(form.referenceId) : 'PCS'))
 
   const loadBalances = () => {
     setBalLoading(true)
@@ -243,7 +246,10 @@ export default function Stock() {
 
   const openCreate = () => {
     setEditingId(null)
-    setForm({ itemType, referenceId: '', quantity: 0, unitPrice: 0, stockDate: today(), notes: '' })
+    setForm({
+      itemType, referenceId: '', quantity: 0, unitPrice: 0,
+      unitOfMeasure: isFabric ? 'METER' : 'PCS', stockDate: today(), notes: '',
+    })
     setRolls([])
     setFabricUnitPrice(0)
     setStartRollNo(1)
@@ -255,6 +261,7 @@ export default function Stock() {
     setEditingId(e.id)
     setForm({
       itemType, referenceId: e.referenceId, quantity: e.quantity, unitPrice: e.unitPrice,
+      unitOfMeasure: e.unitOfMeasure?.trim() || unitOf(e.referenceId),
       stockDate: e.stockDate, notes: e.notes ?? '',
     })
     if (isFabric) {
@@ -280,10 +287,10 @@ export default function Stock() {
     try {
       const payload: CreateStockEntryRequest = isFabric
         ? {
-            ...form, itemType, quantity: 0, unitPrice: 0,
+            ...form, itemType, quantity: 0, unitPrice: 0, unitOfMeasure: formUnit,
             rolls: rolls.map(r => ({ id: r.id, quantityMeters: r.quantityMeters, unitPrice: fabricUnitPrice })),
           }
-        : { ...form, itemType }
+        : { ...form, itemType, unitOfMeasure: form.unitOfMeasure?.trim() || 'PCS' }
       if (editingId) await stockApi.update(editingId, payload)
       else await stockApi.create(payload)
       closeForm()
@@ -473,7 +480,14 @@ export default function Stock() {
               ) : (
                 <SearchableSelect
                   value={form.referenceId}
-                  onChange={v => setForm(p => ({ ...p, referenceId: v }))}
+                  onChange={v => {
+                    const acc = accessories.find(a => a.id === v)
+                    setForm(p => ({
+                      ...p,
+                      referenceId: v,
+                      unitOfMeasure: acc?.unitOfMeasure ?? 'PCS',
+                    }))
+                  }}
                   placeholder="Select accessory…"
                   options={accessories.map(a => ({ value: a.id, label: `${a.accessoryCode} — ${a.accessoryName}` }))}
                 />
@@ -501,13 +515,26 @@ export default function Stock() {
             </>
           )}
 
-          {/* ACCESSORY: plain qty + price */}
+          {/* ACCESSORY: qty + unit + price */}
           {!isFabric && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, alignItems: 'start' }}>
               <div className="form-group">
                 <label>Quantity ({shortUnit(formUnit)}) *</label>
                 <input type="number" step="1" value={form.quantity || ''}
                   onChange={e => setForm(p => ({ ...p, quantity: Number(e.target.value) }))} />
+              </div>
+              <div className="form-group">
+                <label>Unit</label>
+                <PresetOrCustomSelect
+                  value={form.unitOfMeasure ?? ''}
+                  onChange={v => setForm(p => ({ ...p, unitOfMeasure: v }))}
+                  presets={[...UOM_PRESETS]}
+                  placeholder="Unit"
+                  customLabel="Enter custom unit…"
+                  customPlaceholder="e.g. MTR, DOZEN"
+                  maxLength={20}
+                  transform={v => v.toUpperCase()}
+                />
               </div>
               <div className="form-group">
                 <label>Unit Price ₹ <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
@@ -655,7 +682,7 @@ export default function Stock() {
                 {filteredEntries.length === 0 ? (
                   <tr><td colSpan={isFabric ? 6 : 8}><div className="empty-state">{entries.length === 0 ? `No opening stock entries for ${itemType.toLowerCase()}` : 'No items match the search.'}</div></td></tr>
                 ) : sortedEntries.map(e => {
-                  const unit = shortUnit(unitOf(e.referenceId))
+                  const unit = shortUnit(e.unitOfMeasure?.trim() || unitOf(e.referenceId))
                   return (
                     <tr key={e.id} style={{ verticalAlign: 'top' }}>
                       <td style={{ fontWeight: 500, paddingTop: 10 }}>{e.referenceName}</td>

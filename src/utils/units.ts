@@ -1,3 +1,8 @@
+/** Shared unit-of-measure presets for accessory line forms (DC, PO, opening stock). */
+export const UOM_PRESETS = [
+  'PCS', 'SETS', 'METER', 'KG', 'CONE', 'DOZEN', 'PAIR', 'ROLL', 'BOX', 'PACKET', 'GROSS', 'YARD',
+] as const
+
 /** Short display suffix for a stored unit of measure. */
 export function shortUnit(uom?: string | null): string {
   switch ((uom ?? '').trim().toUpperCase()) {

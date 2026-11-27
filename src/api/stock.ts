@@ -13,6 +13,7 @@ export interface StockEntry {
   rolls: FabricRoll[]
   quantity: number
   unitPrice: number
+  unitOfMeasure?: string
   totalValue: number
   stockDate: string
   notes?: string
@@ -44,6 +45,8 @@ export interface CreateStockEntryRequest {
   quantity: number
   /** For accessories: the unit price. For fabric: 0 (price is per-roll). */
   unitPrice: number
+  /** Unit of measure for accessory opening stock (freeform; defaults PCS). */
+  unitOfMeasure?: string
   stockDate: string
   notes?: string
   /** Populated only for FABRIC entries — one entry per physical roll */

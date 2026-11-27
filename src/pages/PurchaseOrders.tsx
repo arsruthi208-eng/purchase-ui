@@ -13,11 +13,9 @@ import { useApiList } from '../hooks/useApiData'
 import { PresetOrCustomSelect, Modal, FormError, FormActions, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
-import { shortUnit } from '../utils/units'
+import { shortUnit, UOM_PRESETS } from '../utils/units'
 
 const ALL_STATUSES = ['DRAFT', 'OPEN', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED']
-
-const ACC_UOMS = ['PCS', 'METER', 'KG', 'CONE'] as const
 
 // ── Preset shipping addresses ──────────────────────────────────────────────────
 const PRESET_ADDRESSES = [
@@ -471,7 +469,7 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                   <span />
                 </div>
                 {form.items.map((line, idx) => (
-                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2.4fr 0.9fr 0.9fr 0.9fr auto', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '2.4fr 0.9fr 0.9fr 0.9fr auto', gap: 8, alignItems: 'start', marginBottom: 10 }}>
                     <SearchableSelect
                       value={line.accessoryId ?? ''}
                       onChange={v => updateLine(idx, { accessoryId: v })}
@@ -479,9 +477,16 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
                       disabled={!form.purchasePartyId}
                       options={accessories.map(a => ({ value: a.id, label: `${a.accessoryCode} — ${a.accessoryName}` }))}
                     />
-                    <select value={line.unitOfMeasure} onChange={e => updateLine(idx, { unitOfMeasure: e.target.value })}>
-                      {ACC_UOMS.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                    <PresetOrCustomSelect
+                      value={line.unitOfMeasure ?? ''}
+                      onChange={v => updateLine(idx, { unitOfMeasure: v })}
+                      presets={[...UOM_PRESETS]}
+                      placeholder="Unit"
+                      customLabel="Enter custom unit…"
+                      customPlaceholder="e.g. MTR, DOZEN"
+                      maxLength={20}
+                      transform={v => v.toUpperCase()}
+                    />
                     <input type="number" placeholder="Qty *" value={line.orderedQuantity || ''} onChange={e => updateLine(idx, { orderedQuantity: Number(e.target.value) })} />
                     <input type="number" step="0.01" placeholder="Price" value={line.unitPrice || ''} onChange={e => updateLine(idx, { unitPrice: Number(e.target.value) })} />
                     <button type="button" className="btn-icon" title="Remove line" style={{ color: '#dc2626' }} onClick={() => deleteLine(idx)} disabled={form.items.length === 1}>

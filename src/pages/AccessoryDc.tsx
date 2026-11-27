@@ -11,11 +11,9 @@ import { stockApi } from '../api/stock'
 import { useApiList } from '../hooks/useApiData'
 import { PresetOrCustomSelect, Modal, FormError, FormActions, AlertDialog, type StockShortfall, statusBadge, today, LoadError, FilterBar, SortableTh } from '../components/ui'
 import { useAlertDialog } from '../hooks/useAlertDialog'
-import { shortUnit } from '../utils/units'
+import { shortUnit, UOM_PRESETS } from '../utils/units'
 
 type Line = CreateAccessoryDcRequest['items'][0]
-
-const UOM_PRESETS = ['PCS', 'SETS', 'METER', 'KG', 'CONE', 'DOZEN', 'PAIR', 'ROLL', 'BOX', 'PACKET', 'GROSS', 'YARD']
 
 const emptyLine = (): Line => ({ accessoryId: '', quantity: 0, unitOfMeasure: 'PCS' })
 
@@ -256,7 +254,7 @@ export default function AccessoryDcPage() {
                 <PresetOrCustomSelect
                   value={line.unitOfMeasure ?? ''}
                   onChange={v => updateLine(idx, { unitOfMeasure: v })}
-                  presets={UOM_PRESETS}
+                  presets={[...UOM_PRESETS]}
                   placeholder="Unit"
                   customLabel="Enter custom unit…"
                   customPlaceholder="e.g. MTR, DOZEN"
