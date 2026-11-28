@@ -122,6 +122,11 @@ export const purchaseOrdersApi = {
   list: (status?: string, kind: 'FABRIC' | 'ACCESSORY' = 'FABRIC') =>
     api.get<PoSummary[]>('/api/v1/purchase-orders', { params: { ...(status ? { status } : {}), kind } }).then(r => r.data),
   getById: (id: string) => api.get<PoDetail>(`/api/v1/purchase-orders/${id}`).then(r => r.data),
+  /** All fabric POs with full line items (for overall Excel summary). */
+  listFabricDetails: async () => {
+    const summaries = await purchaseOrdersApi.list(undefined, 'FABRIC')
+    return Promise.all(summaries.map(s => purchaseOrdersApi.getById(s.id)))
+  },
   create: (data: CreatePoRequest) => api.post<PoDetail>('/api/v1/purchase-orders', data).then(r => r.data),
   update: (id: string, data: CreatePoRequest) => api.put<PoDetail>(`/api/v1/purchase-orders/${id}`, data).then(r => r.data),
   delete: (id: string) => api.delete(`/api/v1/purchase-orders/${id}`),

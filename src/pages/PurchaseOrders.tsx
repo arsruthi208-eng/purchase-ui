@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FileText, Trash2, Pencil } from '../icons'
+import { Plus, FileText, Trash2, Pencil, Download } from '../icons'
 import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { purchaseOrdersApi, type PoSummary, type CreatePoRequest } from '../api/purchaseOrders'
+import { exportFabricPoSummary } from '../utils/exportFabricPoSummary'
 import { purchasePartiesApi, type PurchaseParty } from '../api/purchaseParties'
 import { accessoriesApi, type Accessory } from '../api/accessories'
 import { fabricsApi, type Fabric } from '../api/fabrics'
@@ -76,8 +77,22 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
   )
   const [editingId, setEditingId] = useState<string | null>(null) // null = create, string = edit DRAFT PO id
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
   const { dialog, showError, showConfirm } = useAlertDialog()
+
+  const exportExcel = async () => {
+    setExporting(true)
+    try {
+      const details = await purchaseOrdersApi.listFabricDetails()
+      exportFabricPoSummary(details)
+    } catch (e: any) {
+      if (isForbiddenError(e)) showError('Access Denied', PERMISSION_DENIED_MSG)
+      else showError('Export Failed', e.message ?? 'Could not export fabric purchase orders')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const load = (status?: string) => {
     setLoading(true)
@@ -303,7 +318,14 @@ export default function PurchaseOrders({ kind = 'FABRIC' }: { kind?: PoKind }) {
           <div className="page-title">{isAccessory ? 'Accessory Purchase Orders' : 'Fabric Purchase Orders'}</div>
           <div className="page-subtitle">{pos.length} orders</div>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}><Plus size={16} />New PO</button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {!isAccessory && (
+            <button className="btn btn-secondary" onClick={exportExcel} disabled={exporting}>
+              <Download size={16} />{exporting ? 'Exporting…' : 'Export Excel'}
+            </button>
+          )}
+          <button className="btn btn-primary" onClick={openCreate}><Plus size={16} />New PO</button>
+        </div>
       </div>
 
       {showForm && (
