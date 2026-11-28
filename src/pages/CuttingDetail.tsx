@@ -340,6 +340,7 @@ export default function CuttingDetail() {
             : <InfoRow label="Cutting Date" value={doc.cuttingDate} />
           }
           <InfoRow label="School"  value={doc.schoolName} />
+          <InfoRow label="Sales Order" value={doc.schoolOrderNumber || (doc.notes === 'SAMPLES' || !doc.schoolOrderId ? 'SAMPLES' : '—')} />
           <InfoRow label="Status"  value={doc.status} />
           {editing
             ? <div>

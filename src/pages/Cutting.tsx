@@ -17,6 +17,9 @@ import { useAlertDialog } from '../hooks/useAlertDialog'
 import { isForbiddenError, PERMISSION_DENIED_MSG } from '../utils/permissions'
 import { shortUnit } from '../utils/units'
 
+/** Sentinel in the school-order dropdown: sample cutting with no linked sales order */
+const SAMPLES = '__SAMPLES__'
+
 /** Extended line state that also tracks roll selection */
 interface LineState {
   styleId: string
@@ -289,9 +292,21 @@ export default function Cutting() {
     }))
   }
 
+  const isSamples = schoolOrderId === SAMPLES
+
   const onSchoolOrderChange = async (soId: string) => {
     setSchoolOrderId(soId)
-    if (!soId) { setLockedSchoolId(''); return }
+    if (!soId) {
+      setLockedSchoolId('')
+      setLines([emptyLine()])
+      return
+    }
+    // Sample cutting: no sales order — unlock school and leave lines blank for manual entry
+    if (soId === SAMPLES) {
+      setLockedSchoolId('')
+      setLines([emptyLine()])
+      return
+    }
     try {
       const detail: SchoolOrderDetail = await schoolOrdersApi.getById(soId)
       setLockedSchoolId(detail.schoolId)
@@ -349,7 +364,7 @@ export default function Cutting() {
   const removeLine = (idx: number) => setLines(prev => prev.filter((_, i) => i !== idx))
 
   const checkAndSave = async () => {
-    if (!schoolOrderId) { setError('School order is required'); return }
+    if (!schoolOrderId) { setError('School order is required (or choose SAMPLES)'); return }
     if (!schoolId || !cuttingDate) { setError('School and date are required'); return }
     if (lines.some(l => !l.styleId || !l.fabricId || !l.gender || !l.quantity)) {
       setError('Each line needs style, fabric, gender, and quantity'); return
@@ -406,8 +421,9 @@ export default function Cutting() {
     try {
       const payload: CreateCuttingRequest = {
         schoolId,
-        schoolOrderId: schoolOrderId || undefined,
+        schoolOrderId: isSamples ? undefined : (schoolOrderId || undefined),
         cuttingDate,
+        notes: isSamples ? 'SAMPLES' : undefined,
         sentToPersonName: sentToPersonName || undefined,
         items: lines.map(l => ({
           styleId: l.styleId,
@@ -495,12 +511,15 @@ export default function Cutting() {
                 value={schoolOrderId}
                 onChange={onSchoolOrderChange}
                 placeholder="Select school order…"
-                options={confirmedOrders.map(o => ({ value: o.id, label: `${o.orderNumber} — ${o.schoolName}`, sublabel: o.subject }))}
+                options={[
+                  { value: SAMPLES, label: 'SAMPLES', sublabel: 'Manual sample cutting — no sales order' },
+                  ...confirmedOrders.map(o => ({ value: o.id, label: `${o.orderNumber} — ${o.schoolName}`, sublabel: o.subject })),
+                ]}
               />
             </div>
             <div className="form-group">
               <label>School *</label>
-              {lockedSchoolId ? (
+              {lockedSchoolId && !isSamples ? (
                 <div style={{ padding: '8px 10px', borderRadius: 6, background: 'var(--bg)', border: '1px solid var(--border)', fontSize: 14, fontWeight: 500 }}>
                   {schools.find(s => s.id === lockedSchoolId)?.schoolName ?? lockedSchoolId}
                   <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 6 }}>from school order</span>
@@ -528,9 +547,11 @@ export default function Cutting() {
           {/* Line items */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <span style={{ fontWeight: 600, fontSize: 13 }}>Items</span>
-            {schoolOrderId && (
+            {isSamples ? (
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>SAMPLES — fill style, fabric, gender, qty manually</span>
+            ) : schoolOrderId ? (
               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Auto-filled from school order — select fabric and rolls per line</span>
-            )}
+            ) : null}
           </div>
 
           <div style={{ maxHeight: 480, overflowY: 'auto' }}>
@@ -698,7 +719,7 @@ export default function Cutting() {
                 <tr><td colSpan={6}><div className="empty-state">No cutting orders yet</div></td></tr>
               ) : sorted.map(o => (
                 <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/cutting/${o.id}`)}>
-                  <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{o.cuttingNumber}{dcSubline(o) && <div style={{ fontWeight: 400, fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{dcSubline(o)}</div>}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--navy)' }}>{o.cuttingNumber}{(dcSubline(o) || (!o.schoolOrderId || o.notes === 'SAMPLES')) && <div style={{ fontWeight: 400, fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{!o.schoolOrderId || o.notes === 'SAMPLES' ? 'SAMPLES' : dcSubline(o)}</div>}</td>
                   <td>{o.schoolName}</td>
                   <td>{o.cuttingDate}</td>
                   <td style={{ color: o.sentToPersonName ? undefined : 'var(--text-muted)', fontSize: 13 }}>{o.sentToPersonName ?? '—'}</td>

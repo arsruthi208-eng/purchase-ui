@@ -283,7 +283,7 @@ async function buildCuttingDcHtml(doc: CuttingOrder): Promise<string> {
       { label: 'Cutting Date',   value: fmtDate(doc.cuttingDate) },
       { label: 'School',         value: esc(doc.schoolName) },
       { label: 'Status',         value: esc(doc.status) },
-      { label: 'Sales Order',    value: esc(doc.schoolOrderNumber) },
+      { label: 'Sales Order',    value: esc(doc.schoolOrderNumber || (doc.notes === 'SAMPLES' || !doc.schoolOrderId ? 'SAMPLES' : undefined)) },
       { label: 'Received By',    value: esc(doc.sentToPersonName) },
     ],
     statsHtml: statHtml('Lines', String(doc.items.length)) + statHtml('Total Pieces', totalQty.toLocaleString('en-IN')) + statHtml('Fabric Consumed', `${totalFabric.toFixed(2)}${fabricSuffix}`),
